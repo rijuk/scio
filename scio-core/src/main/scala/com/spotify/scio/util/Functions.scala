@@ -69,7 +69,8 @@ private[scio] object Functions {
       }
     }
 
-    override def extractOutput(accumulator: (U, JList[T])): U = accumulator._2.asScala.foldLeft(accumulator._1)(s)
+    override def extractOutput(accumulator: (U, JList[T])): U =
+      accumulator._2.asScala.foldLeft(accumulator._1)(s)
 
     override def mergeAccumulators(accumulators: JIterable[(U, JList[T])]): (U, JList[T]) = {
       val combined = accumulators.asScala.map(fold).reduce(c)
@@ -78,7 +79,9 @@ private[scio] object Functions {
 
   }
 
-  def combineFn[T, C: ClassTag](createCombiner: T => C, mergeValue: (C, T) => C, mergeCombiners: (C, C) => C)
+  def combineFn[T, C: ClassTag](createCombiner: T => C,
+                                mergeValue: (C, T) => C,
+                                mergeCombiners: (C, C) => C)
   : CombineFn[T, (Option[C], JList[T]), C] = new KryoCombineFn[T, (Option[C], JList[T]), C] {
 
     // defeat closure
@@ -86,13 +89,10 @@ private[scio] object Functions {
     val mv = ClosureCleaner(mergeValue)
     val mc = ClosureCleaner(mergeCombiners)
 
-    private def foldOption(accumulator: (Option[C], JList[T])): Option[C] = {
-      val (a, l) = accumulator
-      if (a.isDefined) {
-        Some(l.asScala.foldLeft(a.get)(mv))
-      } else if (l.isEmpty) {
-        None
-      } else {
+    private def foldOption(accumulator: (Option[C], JList[T])): Option[C] = accumulator match {
+      case (Some(a), l) => Some(l.asScala.foldLeft(a)(mv))
+      case (None, l) if l.isEmpty => None
+      case (None, l) =>
         var c = cc(l.get(0))
         var i = 1
         while (i < l.size) {
@@ -100,7 +100,6 @@ private[scio] object Functions {
           i += 1
         }
         Some(c)
-      }
     }
 
     override def createAccumulator(): (Option[C], JList[T]) = (None, Lists.newArrayList())
@@ -115,10 +114,10 @@ private[scio] object Functions {
       }
     }
 
-    // TODO: maybe unsafe if addInput is never called?
     override def extractOutput(accumulator: (Option[C], JList[T])): C = foldOption(accumulator).get
 
-    override def mergeAccumulators(accumulators: JIterable[(Option[C], JList[T])]): (Option[C], JList[T]) = {
+    override def mergeAccumulators(accumulators: JIterable[(Option[C], JList[T])])
+    : (Option[C], JList[T]) = {
       val combined = accumulators.asScala.flatMap(foldOption).reduce(mc)
       (Some(combined), Lists.newArrayList())
     }
@@ -127,7 +126,8 @@ private[scio] object Functions {
 
   def flatMapFn[T, U](f: T => TraversableOnce[U]): DoFn[T, U] = new DoFn[T, U] {
     val g = ClosureCleaner(f)  // defeat closure
-    override def processElement(c: DoFn[T, U]#ProcessContext): Unit = g(c.element()).foreach(c.output)
+    override def processElement(c: DoFn[T, U]#ProcessContext): Unit =
+      g(c.element()).foreach(c.output)
   }
 
   def serializableFn[T, U](f: T => U): SerializableFunction[T, U] = new SerializableFunction[T, U] {

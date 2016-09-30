@@ -17,9 +17,9 @@
 
 package com.spotify.scio.bigquery.types
 
-import com.spotify.scio.bigquery.TableRow
+import com.google.api.services.bigquery.model.TableRow
 import org.joda.time.Instant
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 // TODO: figure out how to make IntelliJ happy
 // TODO: mock BigQueryClient for fromTable and fromQuery
@@ -27,7 +27,8 @@ class TypeProviderTest extends FlatSpec with Matchers {
 
   val NOW = Instant.now()
 
-  @BigQueryType.fromSchema("""{"fields": [{"mode": "REQUIRED", "name": "f1", "type": "INTEGER"}]}""")
+  @BigQueryType.fromSchema(
+    """{"fields": [{"mode": "REQUIRED", "name": "f1", "type": "INTEGER"}]}""")
   class S1
 
   @BigQueryType.fromSchema(
@@ -166,7 +167,8 @@ class TypeProviderTest extends FlatSpec with Matchers {
 
   it should "support repeated primitive types" in {
     val r1 = RecordWithRepeatedPrimitives(
-      List(1L, 2L), List(1.5, 2.5), List(true, false), List("hello", "world"), List(NOW, NOW.plus(1000)))
+      List(1L, 2L), List(1.5, 2.5), List(true, false), List("hello", "world"),
+      List(NOW, NOW.plus(1000)))
     r1.f1 should equal (List(1L, 2L))
     r1.f2 should equal (List(1.5, 2.5))
     r1.f3 should equal (List(true, false))
@@ -203,7 +205,7 @@ class TypeProviderTest extends FlatSpec with Matchers {
   class RecordWithRequiredRecords
 
   it should "support required records" in {
-    val r = RecordWithRequiredRecords(F1$(1L), F2$(Some(1L)), F3$(List(1L, 2L)))
+    val r = RecordWithRequiredRecords(F1$1(1L), F2$1(Some(1L)), F3$1(List(1L, 2L)))
     r.f1.g should equal (1L)
     r.f2.g should equal (Some(1L))
     r.f3.g should equal (List(1L, 2L))
@@ -231,7 +233,8 @@ class TypeProviderTest extends FlatSpec with Matchers {
   class RecordWithNullableRecords
 
   it should "support nullable records" in {
-    val r = RecordWithNullableRecords(Some(F1$2(1L)), Some(F2$2(Some(1L))), Some(F3$2(List(1L, 2L))))
+    val r = RecordWithNullableRecords(
+      Some(F1$2(1L)), Some(F2$2(Some(1L))), Some(F3$2(List(1L, 2L))))
     r.f1.get.g should equal (1L)
     r.f2.get.g should equal (Some(1L))
     r.f3.get.g should equal (List(1L, 2L))
@@ -259,14 +262,18 @@ class TypeProviderTest extends FlatSpec with Matchers {
   class RecordWithRepeatedRecords
 
   it should "support repeated records" in {
-    val r = RecordWithRepeatedRecords(List(F1$3(1L)), List(F2$3(Some(1L))), List(F3$3(List(1L, 2L))))
+    val r = RecordWithRepeatedRecords(
+      List(F1$3(1L)), List(F2$3(Some(1L))), List(F3$3(List(1L, 2L))))
     r.f1 should equal (List(F1$3(1L)))
     r.f2 should equal (List(F2$3(Some(1L))))
     r.f3 should equal (List(F3$3(List(1L, 2L))))
   }
 
-  @BigQueryType.toTable()
+  @BigQueryType.toTable
   case class ToTable(f1: Long, f2: Double, f3: Boolean, f4: String, f5: Instant)
+
+  @BigQueryType.toTable
+  case class Record(f1: Int, f2: String)
 
   "BigQueryType.toTable" should "support .tupled in companion object" in {
     val r1 = ToTable(1L, 1.5, true, "hello", NOW)
@@ -284,6 +291,18 @@ class TypeProviderTest extends FlatSpec with Matchers {
 
   it should "support .toTableRow in companion object" in {
     (classOf[(ToTable => TableRow)] isAssignableFrom ToTable.toTableRow.getClass) shouldBe true
+  }
+
+  it should "create companion object that is a Function subtype" in {
+    (classOf[Function5[Long, Double, Boolean, String, Instant, ToTable]] isAssignableFrom ToTable.getClass) shouldBe true
+    (classOf[Function2[Int, String, Record]] isAssignableFrom Record.getClass) shouldBe true
+  }
+
+  it should "create companion object that is functionally equal to its apply method" in {
+    def doApply(f: (Int, String) => Record)(x: (Int, String)): Record = f(x._1, x._2)
+
+    doApply(Record.apply _)((3, "a")) shouldEqual doApply(Record)((3, "a"))
+    doApply(Record)((3, "a")) shouldEqual Record(3, "a")
   }
 
 }

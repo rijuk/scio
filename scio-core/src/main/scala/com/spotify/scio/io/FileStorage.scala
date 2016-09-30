@@ -19,6 +19,7 @@ package com.spotify.scio.io
 
 import java.io.{File, FileInputStream, InputStream, SequenceInputStream}
 import java.net.URI
+import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.file.Path
 import java.util.Collections
@@ -26,13 +27,13 @@ import java.util.regex.Pattern
 
 import com.fasterxml.jackson.databind.{ObjectMapper, SerializationFeature}
 import com.google.api.client.util.Charsets
+import com.google.api.services.bigquery.model.TableRow
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory
 import com.google.cloud.dataflow.sdk.util.GcsUtil.GcsUtilFactory
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath
-import com.spotify.scio.bigquery.TableRow
 import com.spotify.scio.util.ScioUtil
 import org.apache.avro.Schema
-import org.apache.avro.file.DataFileStream
+import org.apache.avro.file.{DataFileReader, SeekableFileInput, SeekableInput}
 import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.specific.{SpecificDatumReader, SpecificRecordBase}
 import org.apache.commons.io.filefilter.WildcardFileFilter
@@ -51,9 +52,11 @@ private trait FileStorage {
 
   protected val path: String
 
-  protected def listFiles(): Seq[Path]
+  protected def listFiles: Seq[Path]
 
   protected def getObjectInputStream(path: Path): InputStream
+
+  protected def getAvroSeekableInput(path: Path): SeekableInput
 
   def avroFile[T: ClassTag](schema: Schema = null): Iterator[T] = {
     val cls = ScioUtil.classOf[T]
@@ -62,7 +65,9 @@ private trait FileStorage {
     } else {
       new GenericDatumReader[T](schema)
     }
-    new DataFileStream[T](getDirectoryInputStream(path), reader).iterator().asScala
+
+    listFiles.map(f => DataFileReader.openReader(getAvroSeekableInput(f), reader))
+      .map(_.iterator().asScala).reduce(_ ++ _)
   }
 
   def textFile: Iterator[String] =
@@ -75,7 +80,7 @@ private trait FileStorage {
 
   def isDone: Boolean = {
     val partPattern = "([0-9]{5})-of-([0-9]{5})".r
-    val paths = listFiles()
+    val paths = listFiles
     val nums = paths.flatMap { p =>
       val m = partPattern.findAllIn(p.toString)
       if (m.hasNext) {
@@ -101,7 +106,7 @@ private trait FileStorage {
   }
 
   private def getDirectoryInputStream(path: String): InputStream = {
-    val inputs = listFiles().map(getObjectInputStream).asJava
+    val inputs = listFiles.map(getObjectInputStream).asJava
     new SequenceInputStream(Collections.enumeration(inputs))
   }
 
@@ -116,7 +121,7 @@ private class GcsStorage(protected val path: String) extends FileStorage {
 
   private val GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*")
 
-  override protected def listFiles(): Seq[Path] = {
+  override protected def listFiles: Seq[Path] = {
     if (GLOB_PREFIX.matcher(path).matches()) {
       gcs
         .expand(GcsPath.fromUri(uri))
@@ -131,6 +136,22 @@ private class GcsStorage(protected val path: String) extends FileStorage {
   override protected def getObjectInputStream(path: Path): InputStream =
     Channels.newInputStream(gcs.open(GcsPath.fromUri(path.toUri)))
 
+  override protected def getAvroSeekableInput(path: Path): SeekableInput =
+    new SeekableInput {
+      private val in = gcs.open(GcsPath.fromUri(path.toUri))
+
+      override def tell(): Long = in.position()
+
+      override def length(): Long = in.size()
+
+      override def seek(p: Long): Unit = in.position(p)
+
+      override def read(b: Array[Byte], off: Int, len: Int): Int =
+        in.read(ByteBuffer.wrap(b, off, len))
+
+      override def close(): Unit = in.close()
+    }
+
 }
 
 private class LocalStorage(protected val path: String)  extends FileStorage {
@@ -138,7 +159,7 @@ private class LocalStorage(protected val path: String)  extends FileStorage {
   private val uri = new URI(path)
   require(ScioUtil.isLocalUri(uri), s"Not a local path: $path")
 
-  override protected def listFiles(): Seq[Path] = {
+  override protected def listFiles: Seq[Path] = {
     val p = path.lastIndexOf("/")
     val (dir, filter) = if (p == 0) {
       // "/file.ext"
@@ -157,6 +178,10 @@ private class LocalStorage(protected val path: String)  extends FileStorage {
       .map(_.toPath)
   }
 
-  override protected def getObjectInputStream(path: Path): InputStream = new FileInputStream(path.toFile)
+  override protected def getObjectInputStream(path: Path): InputStream =
+    new FileInputStream(path.toFile)
+
+  override protected def getAvroSeekableInput(path: Path): SeekableInput =
+    new SeekableFileInput(path.toFile)
 
 }

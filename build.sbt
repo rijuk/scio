@@ -21,28 +21,34 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import com.typesafe.sbt.SbtSite.SiteKeys._
 import com.typesafe.sbt.SbtGit.GitKeys.gitRemoteRepo
 import sbtunidoc.Plugin.UnidocKeys._
+import com.trueaccord.scalapb.{ScalaPbPlugin => PB}
 
-val dataflowSdkVersion = "1.4.0"
-val algebirdVersion = "0.12.0"
+val dataflowSdkVersion = "1.7.0"
+val algebirdVersion = "0.12.2"
 val avroVersion = "1.7.7"
-val bigtableVersion = "0.2.3"
-val bijectionVersion = "0.9.2"
+val bigQueryVersion = "v2-rev317-1.22.0"
+val bigtableVersion = "0.9.2"
 val breezeVersion ="0.12"
 val chillVersion = "0.8.0"
-val commonsIoVersion = "2.4"
-val commonsMath3Version = "3.6"
+val commonsIoVersion = "2.5"
+val commonsMath3Version = "3.6.1"
+val csvVersion = "0.1.12"
 val guavaVersion = "19.0"
 val hadoopVersion = "2.7.2"
 val hamcrestVersion = "1.3"
-val hbaseVersion = "1.0.1"
-val javaLshVersion = "0.8"
+val hbaseVersion = "1.0.2"
+val javaLshVersion = "0.10"
 val jodaConvertVersion = "1.8.1"
-val jodaTimeVersion = "2.9.2"
 val junitVersion = "4.12"
-val scalaCheckVersion = "1.13.0"
+val junitInterfaceVersion = "0.11"
+val nettyTcNativeVersion = "1.1.33.Fork18"
+val scalaCheckVersion = "1.13.2"
 val scalaMacrosVersion = "2.1.0"
-val scalaTestVersion = "2.2.6"
-val slf4jVersion = "1.7.18"
+val scalapbVersion = "0.5.19" // inner protobuf-java version must match beam/dataflow-sdk one
+val scalaTestVersion = "3.0.0"
+val slf4jVersion = "1.7.21"
+
+val java8 = sys.props("java.version").startsWith("1.8.")
 
 val commonSettings = Project.defaultSettings ++ Sonatype.sonatypeSettings ++ assemblySettings ++ Seq(
   organization       := "com.spotify",
@@ -53,14 +59,19 @@ val commonSettings = Project.defaultSettings ++ Sonatype.sonatypeSettings ++ ass
   scalacOptions in (Compile, doc) ++= Seq("-groups", "-skip-packages", "com.google"),
   javacOptions                    ++= Seq("-source", "1.7", "-target", "1.7", "-Xlint:unchecked"),
   javacOptions in (Compile, doc)  := Seq("-source", "1.7"),
-  javaOptions in Test             ++= Seq("-Xmx1G"),
 
-  fork in Test := true,
-  coverageExcludedPackages := "com\\.spotify\\.scio\\.util\\.MultiJoin;com\\.spotify\\.scio\\.examples\\..*",
+  testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v"),
+
+  coverageExcludedPackages := Seq(
+    "com\\.spotify\\.scio\\.examples\\..*",
+    "com\\.spotify\\.scio\\.repl\\..*",
+    "com\\.spotify\\.scio\\.util\\.MultiJoin"
+  ).mkString(";"),
 
   // Release settings
   releaseCrossBuild             := true,
   releasePublishArtifactsAction := PgpKeys.publishSigned.value,
+  publishMavenStyle             := true,
   publishArtifact in Test       := false,
   sonatypeProfileName           := "com.spotify",
   pomExtra                      := {
@@ -86,8 +97,23 @@ val commonSettings = Project.defaultSettings ++ Sonatype.sonatypeSettings ++ ass
         <name>Rafal Wojdyla</name>
         <url>https://twitter.com/ravwojdyla</url>
       </developer>
+      <developer>
+        <id>andrewsmartin</id>
+        <name>Andrew Martin</name>
+        <url>https://github.com/andrewsmartin</url>
+      </developer>
     </developers>
   },
+
+  credentials ++= (for {
+    username <- sys.env.get("SONATYPE_USERNAME")
+    password <- sys.env.get("SONATYPE_PASSWORD")
+  } yield
+  Credentials(
+    "Sonatype Nexus Repository Manager",
+    "oss.sonatype.org",
+    username,
+    password)).toSeq,
 
   // Mappings from dependencies to external ScalaDoc/JavaDoc sites
   apiMappings ++= {
@@ -113,14 +139,18 @@ lazy val noPublishSettings = Seq(
 lazy val assemblySettings = Seq(
   test in assembly := {},
   mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) => {
-    case s if s.endsWith("properties") => MergeStrategy.filterDistinctLines
+    case s if s.endsWith(".properties") => MergeStrategy.filterDistinctLines
     case s if s.endsWith("pom.xml") => MergeStrategy.last
     case s if s.endsWith(".class") => MergeStrategy.last
-    case s if s.endsWith(".xsd") => MergeStrategy.last
-    case s if s.endsWith(".dtd") => MergeStrategy.last
+    case s if s.endsWith("libjansi.jnilib") => MergeStrategy.last
     case s if s.endsWith("jansi.dll") => MergeStrategy.rename
-    case s if s.endsWith(".jnilib") => MergeStrategy.rename
     case s if s.endsWith("libjansi.so") => MergeStrategy.rename
+    case s if s.endsWith("libsnappyjava.jnilib") => MergeStrategy.last
+    case s if s.endsWith("libsnappyjava.so") => MergeStrategy.last
+    case s if s.endsWith("snappyjava_snappy.dll") => MergeStrategy.last
+    case s if s.endsWith(".dtd") => MergeStrategy.rename
+    case s if s.endsWith(".xsd") => MergeStrategy.rename
+    case PathList("META-INF", "services", "org.apache.hadoop.fs.FileSystem") => MergeStrategy.filterDistinctLines
     case s => old(s)
   }
   }
@@ -138,12 +168,13 @@ lazy val root: Project = Project(
 ).settings(
   unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject
     -- inProjects(scioRepl) -- inProjects(scioSchemas) -- inProjects(scioExamples),
+  run <<= run in Compile in scioRepl dependsOn sbtReplScalaVersionCheck,
   aggregate in assembly := false
 ).aggregate(
   scioCore,
   scioTest,
   scioBigQuery,
-  scioBigTable,
+  scioBigtable,
   scioExtra,
   scioHdfs,
   scioRepl,
@@ -155,12 +186,12 @@ lazy val scioCore: Project = Project(
   "scio-core",
   file("scio-core"),
   settings = commonSettings ++ Seq(
+    description := "Scio - A Scala API for Google Cloud Dataflow",
     libraryDependencies ++= Seq(
       dataflowSdkDependency,
       "com.twitter" %% "algebird-core" % algebirdVersion,
-      "com.twitter" %% "bijection-avro" % bijectionVersion,
       "com.twitter" %% "chill" % chillVersion,
-      "com.twitter" %% "chill-avro" % chillVersion,
+      "com.twitter" % "chill-protobuf" % chillVersion,
       "commons-io" % "commons-io" % commonsIoVersion,
       "org.apache.commons" % "commons-math3" % commonsMath3Version
     )
@@ -173,10 +204,12 @@ lazy val scioTest: Project = Project(
   "scio-test",
   file("scio-test"),
   settings = commonSettings ++ Seq(
+    description := "Scio helpers for ScalaTest",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % scalaTestVersion,
       // DataFlow testing requires junit and hamcrest
       "junit" % "junit" % junitVersion,
+      "com.novocode" % "junit-interface" % junitInterfaceVersion,
       "org.hamcrest" % "hamcrest-all" % hamcrestVersion
     )
   )
@@ -188,14 +221,16 @@ lazy val scioTest: Project = Project(
 lazy val scioBigQuery: Project = Project(
   "scio-bigquery",
   file("scio-bigquery"),
-  settings = commonSettings ++ Seq(
+  settings = commonSettings ++ Defaults.itSettings ++ Seq(
+    description := "Scio add-on for Google BigQuery",
     libraryDependencies ++= Seq(
       dataflowSdkDependency,
+      "com.google.apis" % "google-api-services-bigquery" % bigQueryVersion,
       "commons-io" % "commons-io" % commonsIoVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "joda-time" % "joda-time" % jodaTimeVersion,
       "org.joda" % "joda-convert" % jodaConvertVersion,
-      "org.scalatest" %% "scalatest" % scalaTestVersion % "test"
+      "org.slf4j" % "slf4j-api" % slf4jVersion,
+      "org.slf4j" % "slf4j-simple" % slf4jVersion % "test,it",
+      "org.scalatest" %% "scalatest" % scalaTestVersion % "test,it"
     ),
     libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
     libraryDependencies ++= (
@@ -206,16 +241,18 @@ lazy val scioBigQuery: Project = Project(
     ),
     addCompilerPlugin(paradiseDependency)
   )
-)
+).configs(IntegrationTest)
 
-lazy val scioBigTable: Project = Project(
+lazy val scioBigtable: Project = Project(
   "scio-bigtable",
   file("scio-bigtable"),
   settings = commonSettings ++ Seq(
+    description := "Scio add-on for Google Cloud Bigtable",
     libraryDependencies ++= Seq(
       "com.google.cloud.bigtable" % "bigtable-hbase-dataflow" % bigtableVersion exclude ("org.slf4j", "slf4j-log4j12"),
       "org.apache.hadoop" % "hadoop-common" % hadoopVersion exclude ("org.slf4j", "slf4j-log4j12"),
-      "org.apache.hbase" % "hbase-common" % hbaseVersion
+      "org.apache.hbase" % "hbase-common" % hbaseVersion,
+      "io.netty" % "netty-tcnative-boringssl-static" % nettyTcNativeVersion
     )
   )
 ).dependsOn(
@@ -226,6 +263,7 @@ lazy val scioExtra: Project = Project(
   "scio-extra",
   file("scio-extra"),
   settings = commonSettings ++ Seq(
+    description := "Scio extra utilities",
     libraryDependencies ++= Seq(
       "com.google.guava" % "guava" % guavaVersion,
       "com.twitter" %% "algebird-core" % algebirdVersion,
@@ -240,24 +278,40 @@ lazy val scioHdfs: Project = Project(
   "scio-hdfs",
   file("scio-hdfs"),
   settings = commonSettings ++ Seq(
+    description := "Scio add-on for HDFS",
     libraryDependencies ++= Seq(
       "org.apache.avro" % "avro-mapred" % avroVersion classifier("hadoop2"),
-      "org.apache.hadoop" % "hadoop-client" % hadoopVersion exclude ("org.slf4j", "slf4j-log4j12"),
-      "junit" % "junit" % junitVersion % "test",
-      "org.hamcrest" % "hamcrest-all" % hamcrestVersion % "test"
+      "org.apache.hadoop" % "hadoop-client" % hadoopVersion exclude ("org.slf4j", "slf4j-log4j12")
     )
   )
 ).dependsOn(
-  scioCore
+  scioCore,
+  scioTest % "test",
+  scioSchemas % "test"
 )
 
 lazy val scioSchemas: Project = Project(
   "scio-schemas",
   file("scio-schemas"),
-  settings = commonSettings ++ sbtavro.SbtAvro.avroSettings ++ noPublishSettings
+  settings = commonSettings ++
+             sbtavro.SbtAvro.avroSettings ++
+             noPublishSettings ++
+             PB.protobufSettings ++ Seq(
+    description := "Avro/Proto schemas for testing",
+    libraryDependencies ++= Seq(
+      "com.github.os72" % "protoc-jar" % "3.0.0-b1"
+    )
+  )
 ).settings(
+  // suppress warnings
   sources in doc in Compile := List(),
-  javacOptions := Seq("-source", "1.7", "-target", "1.7")
+  javacOptions := Seq("-source", "1.7", "-target", "1.7"),
+  compileOrder := CompileOrder.JavaThenScala,
+  PB.javaConversions in PB.protobufConfig := true,
+  PB.grpc := false,
+  PB.runProtoc in PB.protobufConfig := (args =>
+    com.github.os72.protocjar.Protoc.runProtoc("-v300" +: args.toArray)
+  )
 )
 
 lazy val scioExamples: Project = Project(
@@ -271,23 +325,41 @@ lazy val scioExamples: Project = Project(
     addCompilerPlugin(paradiseDependency)
   )
 ).settings(
-  sources in doc in Compile := List()
+  sources in doc in Compile := List(),
+  javacOptions := {
+    if (java8)
+      Seq("-source", "1.8", "-target", "1.8", "-Xlint:unchecked")
+    else
+      javacOptions.value
+  },
+  unmanagedSourceDirectories in Compile ++= {
+    if (java8) Seq(baseDirectory.value / "src/main/java8") else Nil
+  }
 ).dependsOn(
   scioCore,
-  scioBigTable,
+  scioBigtable,
   scioSchemas,
+  scioHdfs,
   scioTest % "test"
 )
+
+val sbtReplScalaVersionCheck = Def.task {
+  if (scalaVersion.value.startsWith("2.10"))
+    sys.error("\n\n\tERROR: Can't start Scio REPL in SBT for scala 2.10.x. " +
+                "Upgrade to 2.11.x. or build REPL assembly jar.\n" +
+                "\tMore info https://github.com/spotify/scio/wiki/Scio-REPL\n\n")
+}
 
 lazy val scioRepl: Project = Project(
   "scio-repl",
   file("scio-repl"),
-  settings = commonSettings ++ noPublishSettings ++ Seq(
+  settings = commonSettings ++ Seq(
     libraryDependencies ++= Seq(
       "org.slf4j" % "slf4j-simple" % slf4jVersion,
       "jline" % "jline" % scalaBinaryVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+      "com.nrinaudo" %% "kantan.csv" % csvVersion,
       paradiseDependency
     ),
     libraryDependencies ++= (
@@ -295,17 +367,19 @@ lazy val scioRepl: Project = Project(
         List("org.scala-lang" % "jline" % scalaVersion.value)
       else
         Nil
-    )
+    ),
+    run <<= run in Compile dependsOn sbtReplScalaVersionCheck
   )
 ).settings(
   assemblyJarName in assembly := s"scio-repl-${version.value}.jar"
 ).dependsOn(
-  scioCore
+  scioCore,
+  scioExtra
 )
 
-/*****************/
-/* Site settings */
-/*****************/
+// =======================================================================
+// Site settings
+// =======================================================================
 
 // ScalaDoc links look like http://site/index.html#my.package.MyClass while JavaDoc links look
 // like http://site/my/package/MyClass.html. Therefore we need to fix links to external JavaDoc
@@ -340,9 +414,9 @@ lazy val siteSettings = site.settings ++ ghpages.settings ++ unidocSettings ++ S
   makeSite <<= makeSite dependsOn fixJavaDocLinksTask
 )
 
-/****************/
-/* API mappings */
-/****************/
+// =======================================================================
+// API mappings
+// =======================================================================
 
 val javaMappings = Seq(
   ("com.google.cloud.dataflow", "google-cloud-dataflow-java-sdk-all",

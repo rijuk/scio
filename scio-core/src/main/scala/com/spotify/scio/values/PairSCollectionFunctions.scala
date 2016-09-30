@@ -17,20 +17,22 @@
 
 package com.spotify.scio.values
 
-import java.lang.{Long => JLong}
+import java.lang.{Iterable => JIterable, Long => JLong}
+import java.util.{Map => JMap}
 
 import com.google.cloud.dataflow.sdk.transforms._
-import com.google.cloud.dataflow.sdk.values.{KV, PCollection}
+import com.google.cloud.dataflow.sdk.values.{KV, PCollection, PCollectionView}
 import com.spotify.scio.ScioContext
 import com.spotify.scio.util._
 import com.spotify.scio.util.random.{BernoulliValueSampler, PoissonValueSampler}
-import com.twitter.algebird.{Aggregator, Monoid, Semigroup}
+import com.twitter.algebird.{Aggregator, _}
 
 import scala.reflect.ClassTag
 
 // scalastyle:off number.of.methods
 /**
  * Extra functions available on SCollections of (key, value) pairs through an implicit conversion.
+ *
  * @groupname cogroup CoGroup Operations
  * @groupname join Join Operations
  * @groupname per_key Per Key Aggregations
@@ -51,8 +53,8 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
     context.wrap(o)
   }
 
-  private[values] def applyPerKey[UI: ClassTag, UO: ClassTag](t: PTransform[PCollection[KV[K, V]], PCollection[KV[K, UI]]],
-                                                              f: KV[K, UI] => (K, UO))
+  private[values] def applyPerKey[UI: ClassTag, UO: ClassTag]
+  (t: PTransform[PCollection[KV[K, V]], PCollection[KV[K, UI]]], f: KV[K, UI] => (K, UO))
   : SCollection[(K, UO)] = {
     val o = self.applyInternal(new PTransform[PCollection[(K, V)], PCollection[(K, UO)]]() {
       override def apply(input: PCollection[(K, V)]): PCollection[(K, UO)] =
@@ -93,18 +95,19 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * the list of values for that key in `this` as well as `that`.
    * @group cogroup
    */
-  def coGroup[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (Iterable[V], Iterable[W]))] =
-    MultiJoin.coGroup(self, that)
+  def cogroup[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (Iterable[V], Iterable[W]))] =
+    MultiJoin.cogroup(self, that)
 
   /**
    * For each key k in `this` or `that1` or `that2`, return a resulting SCollection that contains
    * a tuple with the list of values for that key in `this`, `that1` and `that2`.
    * @group cogroup
    */
-  def coGroup[W1: ClassTag, W2: ClassTag]
+  def cogroup[W1: ClassTag, W2: ClassTag]
   (that1: SCollection[(K, W1)], that2: SCollection[(K, W2)])
   : SCollection[(K, (Iterable[V], Iterable[W1], Iterable[W2]))] =
-    MultiJoin.coGroup(self, that1, that2)
+    MultiJoin.cogroup(self, that1, that2)
 
   /**
    * For each key k in `this` or `that1` or `that2` or `that3`, return a resulting SCollection
@@ -112,17 +115,18 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * `that3`.
    * @group cogroup
    */
-  def coGroup[W1: ClassTag, W2: ClassTag, W3: ClassTag]
+  def cogroup[W1: ClassTag, W2: ClassTag, W3: ClassTag]
   (that1: SCollection[(K, W1)], that2: SCollection[(K, W2)], that3: SCollection[(K, W3)])
   : SCollection[(K, (Iterable[V], Iterable[W1], Iterable[W2], Iterable[W3]))] =
-    MultiJoin.coGroup(self, that1, that2, that3)
+    MultiJoin.cogroup(self, that1, that2, that3)
 
   /**
    * Alias for cogroup.
    * @group cogroup
    */
-  def groupWith[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (Iterable[V], Iterable[W]))] =
-    this.coGroup(that)
+  def groupWith[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (Iterable[V], Iterable[W]))] =
+    this.cogroup(that)
 
   /**
    * Alias for cogroup.
@@ -131,7 +135,7 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
   def groupWith[W1: ClassTag, W2: ClassTag]
   (that1: SCollection[(K, W1)], that2: SCollection[(K, W2)])
   : SCollection[(K, (Iterable[V], Iterable[W1], Iterable[W2]))] =
-    this.coGroup(that1, that2)
+    this.cogroup(that1, that2)
 
   /**
    * Alias for cogroup.
@@ -140,7 +144,7 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
   def groupWith[W1: ClassTag, W2: ClassTag, W3: ClassTag]
   (that1: SCollection[(K, W1)], that2: SCollection[(K, W2)], that3: SCollection[(K, W3)])
   : SCollection[(K, (Iterable[V], Iterable[W1], Iterable[W2], Iterable[W3]))] =
-    this.coGroup(that1, that2, that3)
+    this.cogroup(that1, that2, that3)
 
   // =======================================================================
   // Joins
@@ -155,7 +159,8 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * `this` have key k. Uses the given Partitioner to partition the output SCollection.
    * @group join
    */
-  def fullOuterJoin[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (Option[V], Option[W]))] =
+  def fullOuterJoin[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (Option[V], Option[W]))] =
     MultiJoin.outer(self, that)
 
   /**
@@ -184,13 +189,168 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * partition the output SCollection.
    * @group join
    */
-  def rightOuterJoin[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (Option[V], W))] =
-    this.coGroup(that).flatMap { t =>
-      for {
-        v <- if (t._2._1.isEmpty) Iterable(None) else t._2._1.map(Option(_))
-        w <- t._2._2
-      } yield (t._1, (v, w))
+  def rightOuterJoin[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (Option[V], W))] = self.transform {
+    MultiJoin.left(that, _).mapValues(kv => (kv._2, kv._1))
+  }
+
+  /* Hash operations */
+
+  /**
+   * Perform an inner join by replicating `that` to all workers. The right side should be tiny and
+   * fit in memory.
+   *
+   * @group join
+   */
+  def hashJoin[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (V, W))] = self.transform { in =>
+    val side = that.asMultiMapSideInput
+    in.withSideInputs(side).flatMap[(K, (V, W))] { (kv, s) =>
+      s(side).getOrElse(kv._1, Iterable()).toSeq.map(w => (kv._1, (kv._2, w)))
+    }.toSCollection
+  }
+
+  /**
+   * Perform a left outer join by replicating `that` to all workers. The right side should be tiny
+   * and fit in memory.
+   *
+   * @group join
+   */
+  def hashLeftJoin[W: ClassTag](that: SCollection[(K, W)])
+  : SCollection[(K, (V, Option[W]))] = self.transform { in =>
+    val side = that.asMultiMapSideInput
+    in.withSideInputs(side).flatMap[(K, (V, Option[W]))] { (kv, s) =>
+      val (k, v) = kv
+      val m = s(side)
+      if (m.contains(k)) m(k).map(w => (k, (v, Some(w)))) else Seq((k, (v, None)))
+    }.toSCollection
+  }
+
+  /**
+   * N to 1 skewproof flavor of [[PairSCollectionFunctions.join()]].
+   *
+   * Perform a skewed join where some keys on the left hand may be hot, i.e. appear more than
+   * `hotKeyThreshold` times. Frequency of a key is estimated with `1 - delta` probability, and the
+   * estimate is within `eps * N` of the true frequency.
+   * `true frequency <= estimate <= true frequency + eps * N`, where N is the total size of
+   * the left hand side stream so far.
+   *
+   * @note Make sure to import [[com.twitter.algebird.CMSHasherImplicits]] before using this join
+   * @example {{{
+   * // Implicits that enabling CMS-hashing
+   * import com.twitter.algebird.CMSHasherImplicits._
+   *
+   * val p = logs.skewedJoin(logMetadata, hotKeyThreshold = 8500, eps=0.0005, seed=1)
+   * }}}
+   *
+   * Read more about CMS -> [[com.twitter.algebird.CMSMonoid]]
+   * @group join
+   * @param hotKeyThreshold key with `hotKeyThreshold` values will be considered hot. Some runners
+   *                        have inefficient GroupByKey implementation for groups with more than 10K
+   *                        values. Thus it is recommended to set `hotKeyThreshold` to below 10K,
+   *                        keep upper estimation error in mind.
+   * @param eps One-sided error bound on the error of each point query, i.e. frequency estimate.
+   *            Must lie in (0, 1).
+   * @param seed A seed to initialize the random number generator used to create the pairwise
+   *             independent hash functions.
+   * @param delta A bound on the probability that a query estimate does not lie within some small
+   *              interval (an interval that depends on `eps`) around the truth. Must lie in (0, 1).
+   * @param sampleFraction left side sample fracation. Default is `1.0` - no sampling.
+   * @param withReplacement whether to use sampling with replacement, see [[SCollection.sample()]]
+   */
+  def skewedJoin[W: ClassTag](that: SCollection[(K, W)],
+                              hotKeyThreshold: Long,
+                              eps: Double,
+                              seed: Int,
+                              delta: Double = 1E-10,
+                              sampleFraction: Double = 1.0,
+                              withReplacement: Boolean = true)(implicit hasher: CMSHasher[K])
+  : SCollection[(K, (V, W))] = {
+    require(sampleFraction <= 1.0 && sampleFraction > 0.0,
+      "Sample fraction has to be between (0.0, 1.0] - default is 1.0")
+
+    import com.twitter.algebird._
+    // Key aggregator for `k->#values`
+    val keyAggregator = CMS.aggregator[K](eps, delta, seed)
+
+    val leftSideKeys = if (sampleFraction < 1.0) {
+      self.sample(withReplacement, sampleFraction).keys
+    } else {
+      self.keys
     }
+
+    val cms = leftSideKeys.aggregate(keyAggregator)
+    self.skewedJoin(that, hotKeyThreshold, cms)
+  }
+
+  /**
+   * N to 1 skewproof flavor of [[PairSCollectionFunctions.join()]].
+   *
+   * Perform a skewed join where some keys on the left hand may be hot, i.e. appear more than
+   * `hotKeyThreshold` times. Frequency of a key is estimated with `1 - delta` probability, and the
+   * estimate is within `eps * N` of the true frequency.
+   * `true frequency <= estimate <= true frequency + eps * N`, where N is the total size of
+   * the left hand side stream so far.
+   *
+   * @note Make sure to import [[com.twitter.algebird.CMSHasherImplicits]] before using this join
+   * @example {{{
+   * // Implicits that enabling CMS-hashing
+   * import com.twitter.algebird.CMSHasherImplicits._
+   *
+   * val keyAggregator = CMS.aggregator[K](eps, delta, seed)
+   * val hotKeyCMS = self.keys.aggregate(keyAggregator)
+   * val p = logs.skewedJoin(logMetadata, hotKeyThreshold = 8500, cms=hotKeyCMS)
+   * }}}
+   *
+   * Read more about CMS -> [[com.twitter.algebird.CMSMonoid]]
+   * @group join
+   * @param hotKeyThreshold key with `hotKeyThreshold` values will be considered hot. Some runners
+   *                        have inefficient GroupByKey implementation for groups with more than 10K
+   *                        values. Thus it is recommended to set `hotKeyThreshold` to below 10K,
+   *                        keep upper estimation error in mind.
+   * @param cms left hand side key [[com.twitter.algebird.CMSMonoid]]
+   */
+  def skewedJoin[W: ClassTag](that: SCollection[(K, W)],
+                              hotKeyThreshold: Long,
+                              cms: SCollection[CMS[K]])
+  : SCollection[(K, (V, W))] = {
+    val (hotSelf, chillSelf) = (SideOutput[(K, V)](), SideOutput[(K, V)]())
+    // scalastyle:off line.size.limit
+    // Use asIterableSideInput as workaround for:
+    // http://stackoverflow.com/questions/37126729/ismsinkwriter-expects-keys-to-be-written-in-strictly-increasing-order
+    // scalastyle:on line.size.limit
+    val keyCMS = cms.asIterableSideInput
+
+    val partitionedSelf = self
+      .withSideInputs(keyCMS).transformWithSideOutputs(Seq(hotSelf, chillSelf), (e, c) =>
+        if (c(keyCMS).nonEmpty &&
+            c(keyCMS).head.frequency(e._1).estimate >= hotKeyThreshold) {
+          hotSelf
+        } else {
+          chillSelf
+        }
+    )
+
+    val (hotThat, chillThat) = (SideOutput[(K, W)](), SideOutput[(K, W)]())
+    val partitionedThat = that
+      .withSideInputs(keyCMS)
+      .transformWithSideOutputs(Seq(hotThat, chillThat), (e, c) =>
+        if (c(keyCMS).nonEmpty &&
+            c(keyCMS).head.frequency(e._1).estimate >= hotKeyThreshold) {
+          hotThat
+        } else {
+          chillThat
+        }
+      )
+
+    // Use hash join for hot keys
+    val hotJoined = partitionedSelf(hotSelf).hashJoin(partitionedThat(hotThat))
+
+    // Use regular join for the rest of the keys
+    val chillJoined = partitionedSelf(chillSelf).join(partitionedThat(chillThat))
+
+    hotJoined ++ chillJoined
+  }
 
   // =======================================================================
   // Transformations
@@ -204,8 +364,11 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * and return their first argument instead of creating a new U.
    * @group per_key
    */
-  def aggregateByKey[U: ClassTag](zeroValue: U)(seqOp: (U, V) => U, combOp: (U, U) => U): SCollection[(K, U)] =
-    this.applyPerKey(Combine.perKey(Functions.aggregateFn(zeroValue)(seqOp, combOp)), kvToTuple[K, U])
+  def aggregateByKey[U: ClassTag](zeroValue: U)(seqOp: (U, V) => U,
+                                                combOp: (U, U) => U): SCollection[(K, U)] =
+    this.applyPerKey(
+      Combine.perKey(Functions.aggregateFn(zeroValue)(seqOp, combOp)),
+      kvToTuple[K, U])
 
   /**
    * Aggregate the values of each key with [[com.twitter.algebird.Aggregator Aggregator]]. First
@@ -213,8 +376,11 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * the results as U. This could be more powerful and better optimized in some cases.
    * @group per_key
    */
-  def aggregateByKey[A: ClassTag, U: ClassTag](aggregator: Aggregator[V, A, U]): SCollection[(K, U)] =
-    this.mapValues(aggregator.prepare).sumByKey(aggregator.semigroup).mapValues(aggregator.present)
+  def aggregateByKey[A: ClassTag, U: ClassTag](aggregator: Aggregator[V, A, U])
+  : SCollection[(K, U)] = self.transform { in =>
+    val a = aggregator  // defeat closure
+    in.mapValues(a.prepare).sumByKey(a.semigroup).mapValues(a.present)
+  }
 
   /**
    * For each key, compute the values' data distribution using approximate `N`-tiles.
@@ -222,8 +388,11 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * the elements.
    * @group per_key
    */
-  def approxQuantilesByKey(numQuantiles: Int)(implicit ord: Ordering[V]): SCollection[(K, Iterable[V])] =
-    this.applyPerKey(ApproximateQuantiles.perKey(numQuantiles, ord), kvListToTuple[K, V])
+  def approxQuantilesByKey(numQuantiles: Int)(implicit ord: Ordering[V])
+  : SCollection[(K, Iterable[V])] =
+    this.applyPerKey(
+      ApproximateQuantiles.perKey(numQuantiles, ord),
+      kvListToTuple[K, V])
 
   /**
    * Generic function to combine the elements for each key using a custom set of aggregation
@@ -242,7 +411,9 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
   def combineByKey[C: ClassTag](createCombiner: V => C)
                                (mergeValue: (C, V) => C)
                                (mergeCombiners: (C, C) => C): SCollection[(K, C)] =
-    this.applyPerKey(Combine.perKey(Functions.combineFn(createCombiner, mergeValue, mergeCombiners)), kvToTuple[K, C])
+    this.applyPerKey(
+      Combine.perKey(Functions.combineFn(createCombiner, mergeValue, mergeCombiners)),
+      kvToTuple[K, C])
 
   /**
    * Count approximate number of distinct values for each key in the SCollection.
@@ -269,7 +440,7 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * @return a new SCollection of (key, count) pairs
    * @group per_key
    */
-  def countByKey(): SCollection[(K, Long)] = this.keys.countByValue()
+  def countByKey: SCollection[(K, Long)] = self.transform(_.keys.countByValue)
 
   /**
    * Pass each value in the key-value pair SCollection through a flatMap function without changing
@@ -311,8 +482,18 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * any key in memory. If a key has too many values, it can result in an OutOfMemoryError.
    * @group per_key
    */
-  def groupByKey(): SCollection[(K, Iterable[V])] =
+  def groupByKey: SCollection[(K, Iterable[V])] =
     this.applyPerKey(GroupByKey.create[K, V](), kvIterableToTuple[K, V])
+
+  /**
+   * Return an SCollection with the pairs from `this` whose keys are in `that`.
+   * @group per_key
+   */
+  def intersectByKey(that: SCollection[K]): SCollection[(K, V)] = self.transform {
+    _.cogroup(that.map((_, ()))).flatMap { t =>
+      if (t._2._1.nonEmpty && t._2._2.nonEmpty) t._2._1.map((t._1, _)) else Seq.empty
+    }
+  }
 
   /**
    * Return an SCollection with the keys of each tuple.
@@ -383,13 +564,14 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
   }
 
   /**
-   * Return an SCollection with the pairs from `this` whose keys are not in `other`.
+   * Return an SCollection with the pairs from `this` whose keys are not in `that`.
    * @group per_key
    */
-  def subtractByKey[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, V)] =
-    this.coGroup(that).flatMap { t =>
-      if (t._2._1.nonEmpty && t._2._2.isEmpty) t._2._1.map((t._1, _)) else  Seq.empty
+  def subtractByKey(that: SCollection[K]): SCollection[(K, V)] = self.transform {
+    _.cogroup(that.map((_, ()))).flatMap { t =>
+      if (t._2._1.nonEmpty && t._2._2.isEmpty) t._2._1.map((t._1, _)) else Seq.empty
     }
+  }
 
   /**
    * Reduce by key with [[com.twitter.algebird.Semigroup Semigroup]]. This could be more powerful
@@ -422,34 +604,6 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
   // Scala lambda is simpler and more powerful than transforms.Values
   def values: SCollection[V] = self.map(_._2)
 
-  /* Hash operations */
-
-  /**
-   * Perform an inner join by replicating `that` to all workers. The right side should be tiny and
-   * fit in memory.
-   * @group transform
-   */
-  def hashJoin[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (V, W))] = {
-    val side = that.asMultiMapSideInput
-    self.withSideInputs(side).flatMap[(K, (V, W))] { (kv, s) =>
-      s(side).getOrElse(kv._1, Iterable()).toSeq.map(w => (kv._1, (kv._2, w)))
-    }.toSCollection
-  }
-
-  /**
-   * Perform a left outer join by replicating `that` to all workers. The right side should be tiny
-   * and fit in memory.
-   * @group transform
-   */
-  def hashLeftJoin[W: ClassTag](that: SCollection[(K, W)]): SCollection[(K, (V, Option[W]))] = {
-    val side = that.asMultiMapSideInput
-    self.withSideInputs(side).flatMap[(K, (V, Option[W]))] { (kv, s) =>
-      val (k, v) = kv
-      val m = s(side)
-      if (m.contains(k)) m(k).map(w => (k, (v, Some(w)))) else Seq((k, (v, None)))
-    }.toSCollection
-  }
-
   // =======================================================================
   // Side input operations
   // =======================================================================
@@ -459,15 +613,30 @@ class PairSCollectionFunctions[K, V](val self: SCollection[(K, V)])
    * value], to be used with [[SCollection.withSideInputs]]. It is required that each key of the
    * input be associated with a single value.
    */
-  def asMapSideInput: SideInput[Map[K, V]] = new MapSideInput[K, V](self.toKV.applyInternal(View.asMap()))
+  def asMapSideInput: SideInput[Map[K, V]] = {
+    val o = self.applyInternal(
+      new PTransform[PCollection[(K, V)], PCollectionView[JMap[K, V]]]() {
+        override def apply(input: PCollection[(K, V)]): PCollectionView[JMap[K, V]] = {
+          input.apply(toKvTransform).setCoder(self.getKvCoder[K, V]).apply(View.asMap())
+        }
+      })
+    new MapSideInput[K, V](o)
+  }
 
   /**
    * Convert this SCollection to a SideInput, mapping key-value pairs of each window to a Map[key,
    * Iterable[value]], to be used with [[SCollection.withSideInputs]]. It is not required that the
    * keys in the input collection be unique.
    */
-  def asMultiMapSideInput: SideInput[Map[K, Iterable[V]]] =
-    new MultiMapSideInput[K, V](self.toKV.applyInternal(View.asMultimap()))
+  def asMultiMapSideInput: SideInput[Map[K, Iterable[V]]] = {
+    val o = self.applyInternal(
+      new PTransform[PCollection[(K, V)], PCollectionView[JMap[K, JIterable[V]]]]() {
+        override def apply(input: PCollection[(K, V)]): PCollectionView[JMap[K, JIterable[V]]] = {
+          input.apply(toKvTransform).setCoder(self.getKvCoder[K, V]).apply(View.asMultimap())
+        }
+      })
+    new MultiMapSideInput[K, V](o)
+  }
 
 }
 // scalastyle:on number.of.methods

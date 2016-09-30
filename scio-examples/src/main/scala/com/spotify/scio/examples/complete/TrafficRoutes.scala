@@ -27,6 +27,7 @@ import org.joda.time.{Duration, Instant}
 import org.joda.time.format.DateTimeFormat
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 case class StationSpeed(stationId: String, avgSpeed: Double, timestamp: Long)
 case class RouteInfo(route: String, avgSpeed: Double, slowdownEvent: Boolean)
@@ -94,7 +95,7 @@ object TrafficRoutes {
             Seq()
           }
         } catch {
-          case _: Throwable => Seq.empty
+          case NonFatal(_) => Seq.empty
         }
       }
 
@@ -105,8 +106,10 @@ object TrafficRoutes {
     }
 
     p
-      .withSlidingWindows(Duration.standardMinutes(windowDuration), Duration.standardMinutes(windowSlideEvery))
-      .groupByKey()
+      .withSlidingWindows(
+        Duration.standardMinutes(windowDuration),
+        Duration.standardMinutes(windowSlideEvery))
+      .groupByKey
       .map { kv =>
         var speedSum = 0.0
         var speedCount = 0
@@ -130,7 +133,7 @@ object TrafficRoutes {
         val slowdownEvent = slowdowns >= 2 * speedups
         RouteInfo(kv._1, speedAvg, slowdownEvent)
       }
-      .withTimestamp()  // explose internal timestamp
+      .withTimestamp  // explose internal timestamp
       .map { kv =>
         val (r, ts) = kv
         TableRow(

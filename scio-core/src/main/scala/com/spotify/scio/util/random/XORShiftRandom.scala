@@ -1,3 +1,4 @@
+// scalastyle:off header.matches
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -14,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// scalastyle:on header.matches
 
 /* Ported from org.apache.spark.util.random.XORShiftRandom */
 
@@ -63,7 +65,9 @@ private[random] object XORShiftRandom {
   /** Hash seeds to have 0/1 bits throughout. */
   private def hashSeed(seed: Long): Long = {
     val bytes = ByteBuffer.allocate(java.lang.Long.SIZE).putLong(seed).array()
-    MurmurHash3.bytesHash(bytes)
+    val lowBits = MurmurHash3.bytesHash(bytes)
+    val highBits = MurmurHash3.bytesHash(bytes, lowBits)
+    (highBits.toLong << 32) | (lowBits.toLong & 0xFFFFFFFFL)
   }
 
 }

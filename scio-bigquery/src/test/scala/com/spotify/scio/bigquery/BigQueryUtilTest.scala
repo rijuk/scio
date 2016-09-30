@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Spotify AB.
+ * Copyright 2016 Spotify AB.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,17 +39,6 @@ class BigQueryUtilTest extends FlatSpec with Matchers {
     ).asJava)
     schema.setFactory(new JacksonFactory)
     BigQueryUtil.parseSchema(schema.toString) should equal (schema)
-  }
-
-  "extractTables" should "work" in {
-    val t1 = BigQueryIO.parseTableSpec("my-project:dataset_a.table_a")
-    val t2 = BigQueryIO.parseTableSpec("dataset_b.table_b")
-    BigQueryUtil.extractTables(
-      """
-        |SELECT col1, col2
-        |FROM [my-project:dataset_a.table_a] JOIN [dataset_b.table_b]
-        |GROUP BY col1
-      """.stripMargin) should equal (Set(t1, t2))
   }
 
 }

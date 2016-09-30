@@ -34,7 +34,8 @@ private[scio] object FunctionsWithWindowedValue {
     }
   }
 
-  def flatMapFn[T, U](f: WindowedValue[T] => TraversableOnce[WindowedValue[U]]): DoFn[T, U] = new WindowDoFn[T, U] {
+  def flatMapFn[T, U](f: WindowedValue[T] => TraversableOnce[WindowedValue[U]])
+  : DoFn[T, U] = new WindowDoFn[T, U] {
     val g = ClosureCleaner(f)  // defeat closure
     override def processElement(c: DoFn[T, U]#ProcessContext): Unit = {
       val wv = WindowedValue(c.element(), c.timestamp(), c.window(), c.pane())
@@ -47,14 +48,6 @@ private[scio] object FunctionsWithWindowedValue {
     override def processElement(c: DoFn[T, U]#ProcessContext): Unit = {
       val wv = g(WindowedValue(c.element(), c.timestamp(), c.window(), c.pane()))
       c.outputWithTimestamp(wv.value, wv.timestamp)
-    }
-  }
-
-  def timestampFn[T](f: T => Instant): DoFn[T, T] = new WindowDoFn[T, T] {
-    val g = ClosureCleaner(f)  // defeat closure
-    override def processElement(c: DoFn[T, T]#ProcessContext): Unit = {
-      val t = c.element()
-      c.outputWithTimestamp(t, g(t))
     }
   }
 

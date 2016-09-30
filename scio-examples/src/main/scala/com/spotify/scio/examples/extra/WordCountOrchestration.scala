@@ -17,7 +17,7 @@
 
 package com.spotify.scio.examples.extra
 
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions
+import com.google.cloud.dataflow.sdk.options.PipelineOptions
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner
 import com.spotify.scio._
 import com.spotify.scio.examples.common.ExampleData
@@ -36,12 +36,13 @@ runMain
   --output=gs://[BUCKET]/[PATH]/wordcount
 */
 
+// Use Futures and Taps to orchestrate multiple jobs with dependencies
 object WordCountOrchestration {
 
   type FT[T] = Future[Tap[T]]
 
   def main(cmdlineArgs: Array[String]): Unit = {
-    val (opts, args) = ScioContext.parseArguments[DataflowPipelineOptions](cmdlineArgs)
+    val (opts, args) = ScioContext.parseArguments[PipelineOptions](cmdlineArgs)
 
     // Use a non-blocking runner
     opts.setRunner(classOf[DataflowPipelineRunner])
@@ -56,8 +57,11 @@ object WordCountOrchestration {
 
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    // Join futures and submit merge job
-    val f = Future.sequence(Seq(f1, f2)).flatMap(merge(opts, _, output))
+    // extract Tap[T]s from two Future[Tap[T]]s
+    val f = for {
+      t1 <- f1
+      t2 <- f2
+    } yield merge(opts, Seq(t1, t2), output)
 
     // scalastyle:off regex
     // Block process and wait for last future
@@ -66,11 +70,11 @@ object WordCountOrchestration {
     // scalastyle:on regex
   }
 
-  def count(opts: DataflowPipelineOptions, inputPath: String): FT[(String, Long)] = {
+  def count(opts: PipelineOptions, inputPath: String): FT[(String, Long)] = {
     val sc = ScioContext(opts)
     val f = sc.textFile(inputPath)
       .flatMap(_.split("[^a-zA-Z']+").filter(_.nonEmpty))
-      .countByValue()
+      .countByValue
       .materialize
     sc.close()
     f
@@ -79,10 +83,12 @@ object WordCountOrchestration {
   // Split out transform for unit testing
   def countWords(in: SCollection[String]): SCollection[(String, Long)] = {
     in.flatMap(_.split("[^a-zA-Z']+").filter(_.nonEmpty))
-      .countByValue()
+      .countByValue
   }
 
-  def merge(opts: DataflowPipelineOptions, s: Seq[Tap[(String, Long)]], outputPath: String): FT[String] = {
+  def merge(opts: PipelineOptions,
+            s: Seq[Tap[(String, Long)]],
+            outputPath: String): FT[String] = {
     val sc = ScioContext(opts)
     val f = mergeCounts(s.map(_.open(sc)))
       .map(kv => kv._1 + " " + kv._2)

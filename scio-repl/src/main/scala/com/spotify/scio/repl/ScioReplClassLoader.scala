@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -27,14 +27,15 @@ import org.slf4j.LoggerFactory
 import scala.tools.nsc.interpreter.ILoop
 import scala.tools.nsc.io._
 
-/** *
-  * Class loader with option to lookup classes in REPL classloader.
-  * Some help/code from Twitter Scalding.
-  * @param urls classpath urls for URLClassLoader
-  * @param parent parent for Scio CL - may be null to close the chain
-  */
+/**
+ * Class loader with option to lookup classes in REPL classloader.
+ * Some help/code from Twitter Scalding.
+ * @param urls classpath urls for URLClassLoader
+ * @param parent parent for Scio CL - may be null to close the chain
+ */
 class ScioReplClassLoader(urls: Array[URL], parent: ClassLoader, detachedParent: ClassLoader)
   extends URLClassLoader(urls, parent) {
+
   private val logger = LoggerFactory.getLogger(classOf[ScioReplClassLoader])
 
   private val replJarName = "scio-repl-session.jar"

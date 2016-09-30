@@ -42,7 +42,7 @@ object TopWikipediaSessions {
     sc
       .tableRowJsonFile(args.getOrElse("input", ExampleData.EXPORTED_WIKI_TABLE))
       .flatMap { row =>
-        try Seq((row.getString("contributor_username"), row.getInt("timestamp"))) catch {
+        try Seq((row.getString("contributor_username"), row.getLong("timestamp"))) catch {
           case e: NullPointerException => None
         }
       }
@@ -50,7 +50,7 @@ object TopWikipediaSessions {
       .map(_._1)
       .sample(withReplacement = false, fraction = samplingThreshold)
       .withSessionWindows(Duration.standardHours(1))
-      .countByValue()
+      .countByValue
       .toWindowed  // enable access to underlying window info
       .map(wv => wv.copy((wv.value._1 + " : " + wv.window, wv.value._2)))
       .toSCollection  // end of windowed operation

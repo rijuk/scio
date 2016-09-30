@@ -17,24 +17,24 @@
 
 package com.spotify.scio.repl
 
-import java.io.{OutputStream, PrintStream}
-
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions
+import com.google.cloud.dataflow.sdk.options.PipelineOptions
 import com.spotify.scio.{ScioContext, ScioResult}
 
-class ReplScioContext(options: DataflowPipelineOptions, artifacts: List[String], testId: Option[String])
-  extends ScioContext(options, artifacts, testId) {
-
-  private lazy val nullout = new PrintStream(new OutputStream() {
-    override def write(b: Int) = {}
-    override def write(b: Array[Byte]) = {}
-    override def write(b: Array[Byte], off: Int, len: Int) = {}
-  })
+class ReplScioContext(options: PipelineOptions,
+                      artifacts: List[String])
+  extends ScioContext(options, artifacts) {
 
   /** Enhanced version that dumps REPL session jar. */
   override def close(): ScioResult = {
     createJar()
     super.close()
+  }
+
+  /** Ensure an operation is called before the pipeline is closed. */
+  override private[scio] def pipelineOp[T](body: => T): T = {
+    require(!this.isClosed,
+      "ScioContext already closed, use :newScio <[context-name] | sc> to create new context")
+    super.pipelineOp(body)
   }
 
   private def createJar(): Unit = {

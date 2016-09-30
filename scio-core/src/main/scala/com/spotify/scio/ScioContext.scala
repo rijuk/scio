@@ -20,89 +20,114 @@ package com.spotify.scio
 import java.beans.Introspector
 import java.io.File
 import java.net.{URI, URLClassLoader}
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import java.util.jar.{Attributes, JarFile}
 
-import com.google.api.services.bigquery.model.{JobReference, TableReference}
-import com.google.api.services.datastore.DatastoreV1.{Entity, Query}
+import com.google.datastore.v1.{Query, Entity}
+import com.google.api.services.bigquery.model.TableReference
 import com.google.cloud.dataflow.sdk.Pipeline
 import com.google.cloud.dataflow.sdk.PipelineResult.State
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder
-import com.google.cloud.dataflow.sdk.io.{AvroIO => GAvroIO, BigQueryIO => GBigQueryIO, DatastoreIO => GDatastoreIO, PubsubIO => GPubsubIO, TextIO => GTextIO}
-import com.google.cloud.dataflow.sdk.options.{DataflowPipelineOptions, PipelineOptions, PipelineOptionsFactory}
+import com.google.cloud.dataflow.sdk.io.PatchedAvroIO
+import com.google.cloud.dataflow.sdk.{io => gio}
+import com.google.cloud.dataflow.sdk.options._
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner
 import com.google.cloud.dataflow.sdk.runners.{DataflowPipelineJob, DataflowPipelineRunner}
 import com.google.cloud.dataflow.sdk.testing.TestPipeline
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn
 import com.google.cloud.dataflow.sdk.transforms.{Create, DoFn, PTransform}
-import com.google.cloud.dataflow.sdk.util.CoderUtils
 import com.google.cloud.dataflow.sdk.values.{PBegin, PCollection, POutput, TimestampedValue}
+import com.google.protobuf.Message
 import com.spotify.scio.bigquery._
-import com.spotify.scio.coders.KryoAtomicCoder
+import com.spotify.scio.coders.AvroBytesUtil
+import com.spotify.scio.io.Tap
 import com.spotify.scio.testing._
 import com.spotify.scio.util.{CallSites, ScioUtil}
 import com.spotify.scio.values._
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 import org.apache.avro.specific.SpecificRecordBase
 import org.joda.time.Instant
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{Buffer => MBuffer, Set => MSet}
+import scala.collection.mutable.{Buffer => MBuffer, Map => MMap}
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
+import scala.util.Try
+import scala.util.control.NonFatal
 
 /** Convenience object for creating [[ScioContext]] and [[Args]]. */
 object ContextAndArgs {
   /** Create [[ScioContext]] and [[Args]] for command line arguments. */
   def apply(args: Array[String]): (ScioContext, Args) = {
-    val (_opts, _args) = ScioContext.parseArguments[DataflowPipelineOptions](args)
-    (new ScioContext(_opts, Nil, _args.optional("testId")), _args)
+    val (_opts, _args) = ScioContext.parseArguments[PipelineOptions](args)
+    (new ScioContext(_opts, Nil), _args)
   }
 }
 
 /** Companion object for [[ScioContext]]. */
 object ScioContext {
 
+  import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory
+
   /** Create a new [[ScioContext]] instance. */
   def apply(): ScioContext = ScioContext(defaultOptions)
 
   /** Create a new [[ScioContext]] instance. */
-  def apply(options: DataflowPipelineOptions): ScioContext = new ScioContext(options,  Nil, None)
+  def apply(options: PipelineOptions): ScioContext = new ScioContext(options,  Nil)
 
   /** Create a new [[ScioContext]] instance. */
-  def apply(artifacts: List[String]): ScioContext = new ScioContext(defaultOptions, artifacts, None)
+  def apply(artifacts: List[String]): ScioContext = new ScioContext(defaultOptions, artifacts)
 
   /** Create a new [[ScioContext]] instance. */
-  def apply(options: DataflowPipelineOptions, artifacts: List[String]): ScioContext =
-    new ScioContext(options, artifacts, None)
+  def apply(options: PipelineOptions, artifacts: List[String]): ScioContext =
+    new ScioContext(options, artifacts)
 
   /** Create a new [[ScioContext]] instance for testing. */
-  def forTest(testId: String): ScioContext = new ScioContext(defaultOptions, List[String](), Some(testId))
+  def forTest(): ScioContext = {
+    val opts = PipelineOptionsFactory
+      .fromArgs(Array("--appName=" + JobTest.newTestId()))
+      .as(classOf[ApplicationNameOptions])
 
-  /** Parse PipelineOptions and application arguments from command line arguments. */
-  def parseArguments[T <: PipelineOptions : ClassTag](cmdlineArgs: Array[String]): (T, Args) = {
-    val cls = ScioUtil.classOf[T]
-    val dfPatterns = cls.getMethods.flatMap { m =>
-      val n = m.getName
-      if ((!n.startsWith("get") && !n.startsWith("is")) ||
-        m.getParameterTypes.nonEmpty || m.getReturnType == classOf[Unit]) {
-        None
-      } else {
-        Some(Introspector.decapitalize(n.substring(if (n.startsWith("is")) 2 else 3)))
-      }
-    }.map(s => s"--$s($$|=)".r)
-    val (dfArgs, appArgs) = cmdlineArgs.partition(arg => dfPatterns.exists(_.findFirstIn(arg).isDefined))
-
-    (PipelineOptionsFactory.fromArgs(dfArgs).as(cls), Args(appArgs))
+    opts.setRunner(classOf[InProcessPipelineRunner])
+    new ScioContext(opts, List[String]())
   }
 
-  private val defaultOptions: DataflowPipelineOptions =
-    PipelineOptionsFactory.fromArgs(Array.empty).as(classOf[DataflowPipelineOptions])
+  /** Parse PipelineOptions and application arguments from command line arguments. */
+  def parseArguments[T <: PipelineOptions : ClassTag](cmdlineArgs: Array[String])
+  : (T, Args) = {
+    val optClass = ScioUtil.classOf[T]
+
+    // Extract --pattern of all registered derived types of PipelineOptions
+    val classes = PipelineOptionsFactory.getRegisteredOptions.asScala + optClass
+    val optPatterns = classes.flatMap { cls =>
+      cls.getMethods.flatMap { m =>
+        val n = m.getName
+        if ((!n.startsWith("get") && !n.startsWith("is")) ||
+          m.getParameterTypes.nonEmpty || m.getReturnType == classOf[Unit]) {
+          None
+        } else {
+          Some(Introspector.decapitalize(n.substring(if (n.startsWith("is")) 2 else 3)))
+        }
+      }.map(s => s"--$s($$|=)".r)
+    }
+
+    // Split cmdlineArgs into 2 parts, optArgs for PipelineOptions and appArgs for Args
+    val (optArgs, appArgs) =
+      cmdlineArgs.partition(arg => optPatterns.exists(_.findFirstIn(arg).isDefined))
+
+    (PipelineOptionsFactory.fromArgs(optArgs).as(optClass), Args(appArgs))
+  }
+
+  private val defaultOptions: PipelineOptions = PipelineOptionsFactory.create()
 
 }
 
 /**
- * Main entry point for Dataflow functionality. A ScioContext represents a Dataflow pipeline,
- * and can be used to create SCollections and distributed caches on that cluster.
+ * Main entry point for Scio functionality. A ScioContext represents a pipeline and can be used to
+ * create SCollections and distributed caches on that cluster.
  *
  * @groupname accumulator Accumulators
  * @groupname dist_cache Distributed Cache
@@ -111,26 +136,55 @@ object ScioContext {
  * @groupname Ungrouped Other Members
  */
 // scalastyle:off number.of.methods
-class ScioContext private[scio] (val options: DataflowPipelineOptions, private var artifacts: List[String], testId: Option[String]) {
+class ScioContext private[scio] (val options: PipelineOptions,
+                                 private var artifacts: List[String]) {
+
+  private implicit val context: ScioContext = this
 
   private val logger = LoggerFactory.getLogger(ScioContext.getClass)
 
   import Implicits._
 
-  // Set default name
-  this.setName(CallSites.getAppName)
+  /** Get PipelineOptions as a more specific sub-type. */
+  def optionsAs[T <: PipelineOptions : ClassTag]: T = options.as(ScioUtil.classOf[T])
 
-  /** Dataflow pipeline. */
+  // Set default name if no app name specified by user
+  Try(optionsAs[ApplicationNameOptions]).foreach { o =>
+    if (o.getAppName == null || o.getAppName.startsWith("ScioContext$")) {
+      this.setName(CallSites.getAppName)
+    }
+  }
+
+  private[scio] val testId: Option[String] =
+    Try(optionsAs[ApplicationNameOptions]).toOption.flatMap { o =>
+      if (JobTest.isTestId(o.getAppName)) {
+        Some(o.getAppName)
+      } else {
+        None
+      }
+    }
+
+  /** Underlying pipeline. */
   def pipeline: Pipeline = {
     if (_pipeline == null) {
-      options.setFilesToStage(getFilesToStage(artifacts).asJava)
+      // TODO: make sure this works for other PipelineOptions
+      Try(optionsAs[DataflowPipelineWorkerPoolOptions])
+        .foreach(_.setFilesToStage(getFilesToStage(artifacts).asJava))
       _pipeline = if (testId.isEmpty) {
+        // if in local runner, temp location may be needed, but is not currently required by
+        // the runner, which may end up with NPE. If not set but user generate new temp dir
+        if (ScioUtil.isLocalRunner(options) && options.getTempLocation == null) {
+          val tmpDir = Files.createTempDirectory("scio-temp-")
+          logger.debug(s"New temp directory at $tmpDir")
+          options.setTempLocation(tmpDir.toString)
+        }
         Pipeline.create(options)
       } else {
-        val tp = TestPipeline.create()
+        val testOpts = TestPipeline.testingPipelineOptions()
         // propagate options
-        tp.getOptions.setStableUniqueNames(options.getStableUniqueNames)
-        tp
+        testOpts.setRunner(options.getRunner)
+        testOpts.setStableUniqueNames(options.getStableUniqueNames)
+        TestPipeline.fromOptions(testOpts)
       }
       _pipeline.getCoderRegistry.registerScalaCoders()
     }
@@ -140,9 +194,9 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   /* Mutable members */
   private var _pipeline: Pipeline = null
   private var _isClosed: Boolean = false
-  private val _promises: MBuffer[(Promise[AnyRef], AnyRef)] = MBuffer.empty
-  private val _bigQueryJobs: MBuffer[JobReference] = MBuffer.empty
-  private val _accumulators: MSet[String] = MSet.empty
+  private val _promises: MBuffer[(Promise[Tap[_]], Tap[_])] = MBuffer.empty
+  private val _queryJobs: MBuffer[QueryJob] = MBuffer.empty
+  private val _accumulators: MMap[String, Accumulator[_]] = MMap.empty
 
   /** Wrap a [[com.google.cloud.dataflow.sdk.values.PCollection PCollection]]. */
   def wrap[T: ClassTag](p: PCollection[T]): SCollection[T] =
@@ -152,7 +206,7 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   // Extra artifacts - jars/files etc
   // =======================================================================
 
-  /** Borrowed from Dataflow */
+  /** Borrowed from DataflowPipelineRunner. */
   private def detectClassPathResourcesToStage(classLoader: ClassLoader): List[String] = {
     require(classLoader.isInstanceOf[URLClassLoader],
       "Current ClassLoader is '" + classLoader + "' only URLClassLoaders are supported")
@@ -161,14 +215,36 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
     val javaHome = new File(sys.props("java.home")).getCanonicalPath
     val userDir = new File(sys.props("user.dir")).getCanonicalPath
 
-    classLoader.asInstanceOf[URLClassLoader]
+    val classPathJars = classLoader.asInstanceOf[URLClassLoader]
       .getURLs
       .map(url => new File(url.toURI).getCanonicalPath)
       .filter(p => !p.startsWith(javaHome) && p != userDir)
       .toList
+
+    // fetch jars from classpath jar's manifest Class-Path if present
+    val manifestJars =  classPathJars
+      .filter(_.endsWith(".jar"))
+      .map(p => (p, new JarFile(p).getManifest))
+      .filter { case (p, manifest) =>
+        manifest != null && manifest.getMainAttributes.containsKey(Attributes.Name.CLASS_PATH)}
+      .map { case (p, manifest) => (new File(p).getParentFile,
+        manifest.getMainAttributes.getValue(Attributes.Name.CLASS_PATH).split(" ")) }
+      .flatMap { case (parent, jars) => jars.map(jar =>
+        if (jar.startsWith("/")) {
+          jar // accept absolute path as is
+        } else {
+          new File(parent, jar).getCanonicalPath  // relative path
+        })
+      }
+
+    logger.debug(s"Classpath jars: ${classPathJars.mkString(":")}")
+    logger.debug(s"Manifest jars: ${manifestJars.mkString(":")}")
+
+    // no need to care about duplicates here - should be solved by the SDK uploader
+    classPathJars ++ manifestJars
   }
 
-  /** Compute list of files to stage in dataflow */
+  /** Compute list of local files to make available to workers. */
   private def getFilesToStage(extraLocalArtifacts: List[String]): List[String] = {
     val finalLocalArtifacts = detectClassPathResourcesToStage(
       classOf[DataflowPipelineRunner].getClassLoader) ++ extraLocalArtifacts
@@ -178,8 +254,8 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   }
 
   /**
-   * Add artifact to stage in Dataflow - artifact can be jar/text-files etc.
-   * NOTE: currently one can add artifacts only before pipeline object is created
+   * Add artifact to stage in workers. Artifact can be jar/text-files etc.
+   * NOTE: currently one can only add artifacts before pipeline object is created.
    */
   def addArtifacts(extraLocalArtifacts: List[String]): Unit = {
     require(_pipeline == null, "Cannot add artifacts once pipeline is initialized")
@@ -190,8 +266,10 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   // Miscellaneous
   // =======================================================================
 
-  private lazy val bigQueryClient: BigQueryClient =
-    BigQueryClient(options.getProject, options.getGcpCredential)
+  private lazy val bigQueryClient: BigQueryClient = {
+    val o = optionsAs[GcpOptions]
+    BigQueryClient(o.getProject, o.getGcpCredential)
+  }
 
   // =======================================================================
   // States
@@ -203,14 +281,15 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
       throw new RuntimeException("Cannot set name once pipeline is initialized")
     }
     // override app name and job name
-    options.setAppName(name)
-    options.setJobName(new DataflowPipelineOptions.JobNameFactory().create(options))
+    Try(optionsAs[ApplicationNameOptions]).foreach(_.setAppName(name))
+    Try(optionsAs[DataflowPipelineOptions])
+      .foreach(_.setJobName(new DataflowPipelineOptions.JobNameFactory().create(options)))
   }
 
   /** Close the context. No operation can be performed once the context is closed. */
   def close(): ScioResult = {
-    if (_bigQueryJobs.nonEmpty) {
-      bigQueryClient.waitForJobs(_bigQueryJobs: _*)
+    if (_queryJobs.nonEmpty) {
+      bigQueryClient.waitForJobs(_queryJobs: _*)
     }
 
     _isClosed = true
@@ -226,7 +305,7 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
           state
         }
         f.onFailure {
-          case e: Throwable => _promises.foreach(_._1.failure(e))
+          case NonFatal(e) => _promises.foreach(_._1.failure(e))
         }
         f
       // blocking runner, handle callbacks directly
@@ -235,7 +314,7 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
         Future.successful(result.getState)
     }
 
-    new ScioResult(result, finalState, pipeline)
+    new ScioResult(result, finalState, _accumulators.values.toSeq, pipeline)
   }
 
   /** Whether the context is closed. */
@@ -252,25 +331,23 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   // =======================================================================
 
   // To be updated once the pipeline completes.
-  private[scio] def makeFuture[T](value: AnyRef): Future[T] = {
-    val p = Promise[AnyRef]()
-    _promises.append((p, value))
-    p.future.asInstanceOf[Future[T]]
+  private[scio] def makeFuture[T](value: Tap[T]): Future[Tap[T]] = {
+    val p = Promise[Tap[T]]()
+    _promises.append((p.asInstanceOf[Promise[Tap[_]]], value.asInstanceOf[Tap[_]]))
+    p.future
   }
 
   private def updateFutures(state: State): Unit = _promises.foreach { kv =>
     if (state == State.DONE || state == State.UPDATED) {
       kv._1.success(kv._2)
     } else {
-      kv._1.failure(new RuntimeException("Dataflow pipeline failed to complete: " + state))
+      kv._1.failure(new RuntimeException("Pipeline failed to complete: " + state))
     }
   }
 
   // =======================================================================
   // Test wiring
   // =======================================================================
-
-  private implicit def context: ScioContext = this
 
   private[scio] def isTest: Boolean = testId.isDefined
 
@@ -285,8 +362,16 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
   // Read operations
   // =======================================================================
 
-  private[scio] def applyInternal[Output <: POutput](root: PTransform[_ >: PBegin, Output]): Output =
+  private[scio] def applyInternal[Output <: POutput](root: PTransform[_ >: PBegin, Output])
+  : Output =
     pipeline.apply(CallSites.getCurrent, root)
+
+  /**
+   * Apply a [[com.google.cloud.dataflow.sdk.transforms.PTransform PTransform]] and wrap the output
+   * in an [[SCollection]].
+   */
+  def applyTransform[T: ClassTag](root: PTransform[_ >: PBegin, PCollection[T]]): SCollection[T] =
+    this.wrap(this.applyInternal(root))
 
   /**
    * Get an SCollection for an object file.
@@ -296,11 +381,12 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
     if (this.isTest) {
       this.getTestInput(ObjectFileIO[T](path))
     } else {
-      this.textFile(path)
-        .parDo(new DoFn[String, T] {
-          private val coder = KryoAtomicCoder[T]
-          override def processElement(c: DoFn[String, T]#ProcessContext): Unit =
-            c.output(CoderUtils.decodeFromBase64(coder, c.element()))
+      val coder = pipeline.getCoderRegistry.getScalaCoder[T]
+      this.avroFile[GenericRecord](path, AvroBytesUtil.schema)
+        .parDo(new DoFn[GenericRecord, T] {
+          override def processElement(c: DoFn[GenericRecord, T]#ProcessContext): Unit = {
+            c.output(AvroBytesUtil.decode(coder, c.element()))
+          }
         })
         .setName(path)
     }
@@ -314,28 +400,37 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
     if (this.isTest) {
       this.getTestInput(AvroIO[T](path))
     } else {
-      val transform = GAvroIO.Read.from(path)
+      val transform = gio.PatchedAvroIO.Read.from(path)
       val cls = ScioUtil.classOf[T]
       val t = if (classOf[SpecificRecordBase] isAssignableFrom cls) {
         transform.withSchema(cls)
       } else {
-        transform.withSchema(schema).asInstanceOf[GAvroIO.Read.Bound[T]]
+        transform.withSchema(schema).asInstanceOf[PatchedAvroIO.Read.Bound[T]]
       }
       wrap(this.applyInternal(t)).setName(path)
     }
   }
 
   /**
+   * Get an SCollection for a Protobuf file.
+   * @group input
+   */
+  def protobufFile[T: ClassTag](path: String)(implicit ev: T <:< Message): SCollection[T] =
+    objectFile(path)
+
+  /**
    * Get an SCollection for a BigQuery SELECT query.
    * @group input
    */
-  def bigQuerySelect(sqlQuery: String): SCollection[TableRow] = pipelineOp {
+  def bigQuerySelect(sqlQuery: String,
+                     flattenResults: Boolean = false): SCollection[TableRow] = pipelineOp {
     if (this.isTest) {
       this.getTestInput(BigQueryIO(sqlQuery))
     } else {
-      val (tableRef, jobRef) = this.bigQueryClient.queryIntoTable(sqlQuery)
-      jobRef.foreach(j => _bigQueryJobs.append(j))
-      wrap(this.applyInternal(GBigQueryIO.Read.from(tableRef).withoutValidation())).setName(sqlQuery)
+      val queryJob = this.bigQueryClient.newQueryJob(sqlQuery, flattenResults)
+      _queryJobs.append(queryJob)
+      wrap(this.applyInternal(gio.BigQueryIO.Read.from(queryJob.table).withoutValidation()))
+        .setName(sqlQuery)
     }
   }
 
@@ -344,11 +439,11 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @group input
    */
   def bigQueryTable(table: TableReference): SCollection[TableRow] = pipelineOp {
-    val tableSpec: String = GBigQueryIO.toTableSpec(table)
+    val tableSpec: String = gio.BigQueryIO.toTableSpec(table)
     if (this.isTest) {
       this.getTestInput(BigQueryIO(tableSpec))
     } else {
-      wrap(this.applyInternal(GBigQueryIO.Read.from(table))).setName(tableSpec)
+      wrap(this.applyInternal(gio.BigQueryIO.Read.from(table))).setName(tableSpec)
     }
   }
 
@@ -357,31 +452,42 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @group input
    */
   def bigQueryTable(tableSpec: String): SCollection[TableRow] =
-    this.bigQueryTable(GBigQueryIO.parseTableSpec(tableSpec))
+    this.bigQueryTable(gio.BigQueryIO.parseTableSpec(tableSpec))
 
   /**
    * Get an SCollection for a Datastore query.
    * @group input
    */
-  def datastore(datasetId: String, query: Query): SCollection[Entity] = pipelineOp {
-    if (this.isTest) {
-      this.getTestInput(DatastoreIO(datasetId, query))
-    } else {
-      wrap(this.applyInternal(GDatastoreIO.readFrom(datasetId, query)))
+  def datastore(projectId: String, query: Query, namespace: String = null): SCollection[Entity] =
+    pipelineOp {
+      if (this.isTest) {
+        this.getTestInput(DatastoreIO(projectId, query, namespace))
+      } else {
+        wrap(this.applyInternal(
+          gio.datastore.DatastoreIO.v1().read()
+            .withProjectId(projectId)
+            .withNamespace(namespace)
+            .withQuery(query)))
+      }
     }
-  }
 
   /**
    * Get an SCollection for a Pub/Sub subscription.
    * @group input
    */
-  def pubsubSubscription(sub: String, idLabel: String = null, timestampLabel: String = null): SCollection[String] = pipelineOp {
+  def pubsubSubscription(sub: String,
+                         idLabel: String = null,
+                         timestampLabel: String = null): SCollection[String] = pipelineOp {
     if (this.isTest) {
       this.getTestInput(PubsubIO(sub))
     } else {
-      var transform = GPubsubIO.Read.subscription(sub)
-      if (idLabel != null) transform = transform.idLabel(idLabel)
-      if (timestampLabel != null) transform = transform.timestampLabel(timestampLabel)
+      var transform = gio.PubsubIO.Read.subscription(sub)
+      if (idLabel != null) {
+        transform = transform.idLabel(idLabel)
+      }
+      if (timestampLabel != null) {
+        transform = transform.timestampLabel(timestampLabel)
+      }
       wrap(this.applyInternal(transform)).setName(sub)
     }
   }
@@ -390,13 +496,19 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * Get an SCollection for a Pub/Sub topic.
    * @group input
    */
-  def pubsubTopic(topic: String, idLabel: String = null, timestampLabel: String = null): SCollection[String] = pipelineOp {
+  def pubsubTopic(topic: String,
+                  idLabel: String = null,
+                  timestampLabel: String = null): SCollection[String] = pipelineOp {
     if (this.isTest) {
       this.getTestInput(PubsubIO(topic))
     } else {
-      var transform = GPubsubIO.Read.topic(topic)
-      if (idLabel != null) transform = transform.idLabel(idLabel)
-      if (timestampLabel != null) transform = transform.timestampLabel(timestampLabel)
+      var transform = gio.PubsubIO.Read.topic(topic)
+      if (idLabel != null) {
+        transform = transform.idLabel(idLabel)
+      }
+      if (timestampLabel != null) {
+        transform = transform.timestampLabel(timestampLabel)
+      }
       wrap(this.applyInternal(transform)).setName(topic)
     }
   }
@@ -409,7 +521,8 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
     if (this.isTest) {
       this.getTestInput(TableRowJsonIO(path))
     } else {
-      wrap(this.applyInternal(GTextIO.Read.from(path).withCoder(TableRowJsonCoder.of()))).setName(path)
+      wrap(this.applyInternal(gio.TextIO.Read.from(path).withCoder(TableRowJsonCoder.of())))
+        .setName(path)
     }
   }
 
@@ -417,11 +530,14 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * Get an SCollection for a text file.
    * @group input
    */
-  def textFile(path: String): SCollection[String] = pipelineOp {
+  def textFile(path: String,
+               compressionType: gio.TextIO.CompressionType = gio.TextIO.CompressionType.AUTO)
+  : SCollection[String] = pipelineOp {
     if (this.isTest) {
       this.getTestInput(TextIO(path))
     } else {
-      wrap(this.applyInternal(GTextIO.Read.from(path))).setName(path)
+      wrap(this.applyInternal(gio.TextIO.Read.from(path)
+        .withCompressionType(compressionType))).setName(path)
     }
   }
 
@@ -437,12 +553,13 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @group accumulator
    */
   def maxAccumulator[T](n: String)(implicit at: AccumulatorType[T]): Accumulator[T] = pipelineOp {
-    require(!_accumulators.contains(n), s"Accumulator $n already exists")
-    _accumulators.add(n)
-    new Accumulator[T] {
+    require(!_accumulators.contains(n), s"Accumulator '$n' already exists")
+    val acc = new Accumulator[T] {
       override val name: String = n
       override val combineFn: CombineFn[T, _, T] = at.maxFn()
     }
+    _accumulators.put(n, acc)
+    acc
   }
 
   /**
@@ -453,12 +570,13 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @group accumulator
    */
   def minAccumulator[T](n: String)(implicit at: AccumulatorType[T]): Accumulator[T] = pipelineOp {
-    require(!_accumulators.contains(n), s"Accumulator $n already exists")
-    _accumulators.add(n)
-    new Accumulator[T] {
+    require(!_accumulators.contains(n), s"Accumulator '$n' already exists")
+    val acc = new Accumulator[T] {
       override val name: String = n
       override val combineFn: CombineFn[T, _, T] = at.minFn()
     }
+    _accumulators.put(n, acc)
+    acc
   }
 
   /**
@@ -469,12 +587,13 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @group accumulator
    */
   def sumAccumulator[T](n: String)(implicit at: AccumulatorType[T]): Accumulator[T] = pipelineOp {
-    require(!_accumulators.contains(n), s"Accumulator $n already exists")
-    _accumulators.add(n)
-    new Accumulator[T] {
+    require(!_accumulators.contains(n), s"Accumulator '$n' already exists")
+    val acc = new Accumulator[T] {
       override val name: String = n
       override val combineFn: CombineFn[T, _, T] = at.sumFn()
     }
+    _accumulators.put(n, acc)
+    acc
   }
 
   // =======================================================================
@@ -502,7 +621,8 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    */
   def parallelize[K: ClassTag, V: ClassTag](elems: Map[K, V]): SCollection[(K, V)] = pipelineOp {
     val coder = pipeline.getCoderRegistry.getScalaKvCoder[K, V]
-    wrap(this.applyInternal(Create.of(elems.asJava).withCoder(coder))).map(kv => (kv.getKey, kv.getValue))
+    wrap(this.applyInternal(Create.of(elems.asJava).withCoder(coder)))
+      .map(kv => (kv.getKey, kv.getValue))
       .setName(truncate(elems.toString()))
   }
 
@@ -510,7 +630,8 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * Distribute a local Scala Iterable with timestamps to form an SCollection.
    * @group in_memory
    */
-  def parallelizeTimestamped[T: ClassTag](elems: Iterable[(T, Instant)]): SCollection[T] = pipelineOp {
+  def parallelizeTimestamped[T: ClassTag](elems: Iterable[(T, Instant)])
+  : SCollection[T] = pipelineOp {
     val coder = pipeline.getCoderRegistry.getScalaCoder[T]
     val v = elems.map(t => TimestampedValue.of(t._1, t._2))
     wrap(this.applyInternal(Create.timestamped(v.asJava).withCoder(coder)))
@@ -521,17 +642,21 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * Distribute a local Scala Iterable with timestamps to form an SCollection.
    * @group in_memory
    */
-  def parallelizeTimestamped[T: ClassTag](elems: Iterable[T],
-                                          timestamps: Iterable[Instant]): SCollection[T] = pipelineOp {
+  def parallelizeTimestamped[T: ClassTag](elems: Iterable[T], timestamps: Iterable[Instant])
+  : SCollection[T] = pipelineOp {
     val coder = pipeline.getCoderRegistry.getScalaCoder[T]
     val v = elems.zip(timestamps).map(t => TimestampedValue.of(t._1, t._2))
     wrap(this.applyInternal(Create.timestamped(v.asJava).withCoder(coder)))
       .setName(truncate(elems.toString()))
   }
 
-  // =======================================================================
-  // Distributed cache
-  // =======================================================================
+}
+// scalastyle:on number.of.methods
+
+/** An enhanced ScioContext with distributed cache features. */
+class DistCacheScioContext private[scio] (self: ScioContext) {
+
+  private[scio] def testDistCache: TestDistCache = TestDataManager.getDistCache(self.testId.get)
 
   /**
    * Create a new [[com.spotify.scio.values.DistCache DistCache]] instance.
@@ -553,11 +678,11 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * }}}
    * @group dist_cache
    */
-  def distCache[F](uri: String)(initFn: File => F): DistCache[F] = pipelineOp {
-    if (this.isTest) {
+  def distCache[F](uri: String)(initFn: File => F): DistCache[F] = self.pipelineOp {
+    if (self.isTest) {
       new MockDistCache(testDistCache(DistCacheIO(uri)))
     } else {
-      new DistCacheSingle(new URI(uri), initFn, options)
+      new DistCacheSingle(new URI(uri), initFn, self.optionsAs[GcsOptions])
     }
   }
 
@@ -567,13 +692,12 @@ class ScioContext private[scio] (val options: DataflowPipelineOptions, private v
    * @param initFn function to initialized the distributed files
    * @group dist_cache
    */
-  def distCache[F](uris: Seq[String])(initFn: Seq[File] => F): DistCache[F] = pipelineOp {
-    if (this.isTest) {
+  def distCache[F](uris: Seq[String])(initFn: Seq[File] => F): DistCache[F] = self.pipelineOp {
+    if (self.isTest) {
       new MockDistCache(testDistCache(DistCacheIO(uris.mkString("\t"))))
     } else {
-      new DistCacheMulti(uris.map(new URI(_)), initFn, options)
+      new DistCacheMulti(uris.map(new URI(_)), initFn, self.optionsAs[GcsOptions])
     }
   }
 
 }
-// scalastyle:on number.of.methods

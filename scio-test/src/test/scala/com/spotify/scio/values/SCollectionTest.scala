@@ -17,7 +17,18 @@
 
 package com.spotify.scio.values
 
+import java.io.PrintStream
+import java.nio.file.Files
+
+import com.google.api.client.util.Charsets
+import com.google.cloud.dataflow.sdk.io.Write
+import com.google.cloud.dataflow.sdk.transforms.Count
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing
+import com.google.cloud.dataflow.sdk.transforms.windowing.{GlobalWindow, PaneInfo}
+import com.spotify.scio.io.{InMemorySink, InMemorySinkManager}
 import com.spotify.scio.testing.PipelineSpec
+import com.spotify.scio.util.MockedPrintStream
+import com.spotify.scio.util.random.RandomSamplerUtils
 import com.twitter.algebird.{Aggregator, Semigroup}
 import org.joda.time.{Duration, Instant}
 
@@ -31,6 +42,28 @@ class SCollectionTest extends PipelineSpec {
     runWithContext { sc =>
       val p = sc.parallelize(Seq(1, 2, 3, 4, 5)).setName("MySCollection")
       p.name shouldBe "MySCollection"
+    }
+  }
+
+  it should "support applyTransform()" in {
+    runWithContext { sc =>
+      val p = sc.parallelize(Seq(1, 2, 3, 4, 5)).applyTransform(Count.globally())
+      p should containSingleValue (5L.asInstanceOf[java.lang.Long])
+    }
+  }
+
+  it should "support applyOutputTransform()" in {
+    val id = System.currentTimeMillis().toString
+    runWithContext { sc =>
+      sc.parallelize(Seq(1, 2, 3, 4, 5))
+        .applyOutputTransform(Write.to(new InMemorySink[Int](id)))
+    }
+    InMemorySinkManager.get[Int](id).toSet should equal (Set(1, 2, 3, 4, 5))
+  }
+
+  it should "support transform()" in {
+    runWithContext {
+      _.parallelize(1 to 10).transform(_.map(_ * 10).sum) should containSingleValue (550)
     }
   }
 
@@ -107,6 +140,18 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
+  it should "support collect" in {
+    runWithContext { sc =>
+      val records = Seq(
+        ("test1", 1),
+        ("test2", 2),
+        ("test3", 3)
+      )
+      val p = sc.parallelize(records).collect { case ("test2", x) => 2 * x }
+      p should containSingleValue (4)
+    }
+  }
+
   it should "support combine()" in {
     runWithContext { sc =>
       val p = sc.parallelize(1 to 100).combine(_.toDouble)(_ + _)(_ + _)
@@ -114,9 +159,9 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support count()" in {
+  it should "support count" in {
     runWithContext { sc =>
-      sc.parallelize(Seq("a", "b", "c")) should haveSize (3)
+      sc.parallelize(Seq("a", "b", "c")).count should containSingleValue (3L)
     }
   }
 
@@ -130,16 +175,16 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support countByValue()" in {
+  it should "support countByValue" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq("a", "b", "b", "c", "c", "c")).countByValue()
+      val p = sc.parallelize(Seq("a", "b", "b", "c", "c", "c")).countByValue
       p should containInAnyOrder (Seq(("a", 1L), ("b", 2L), ("c", 3L)))
     }
   }
 
-  it should "support distinct()" in {
+  it should "support distinct" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq("a", "b", "b", "c", "c", "c")).distinct()
+      val p = sc.parallelize(Seq("a", "b", "b", "c", "c", "c")).distinct
       p should containInAnyOrder (Seq("a", "b", "c"))
     }
   }
@@ -189,9 +234,9 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support max()" in {
+  it should "support max" in {
     runWithContext { sc =>
-      def max[T: ClassTag : Numeric](elems: T*) = sc.parallelize(elems).max
+      def max[T: ClassTag : Numeric](elems: T*): SCollection[T] = sc.parallelize(elems).max
       max(1, 2, 3) should containSingleValue (3)
       max(1L, 2L, 3L) should containSingleValue (3L)
       max(1F, 2F, 3F) should containSingleValue (3F)
@@ -199,9 +244,9 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support mean()" in {
+  it should "support mean" in {
     runWithContext { sc =>
-      def mean[T: ClassTag : Numeric](elems: T*) = sc.parallelize(elems).mean
+      def mean[T: ClassTag : Numeric](elems: T*): SCollection[Double] = sc.parallelize(elems).mean
       mean(1, 2, 3) should containSingleValue (2.0)
       mean(1L, 2L, 3L) should containSingleValue (2.0)
       mean(1F, 2F, 3F) should containSingleValue (2.0)
@@ -209,9 +254,9 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support min()" in {
+  it should "support min" in {
     runWithContext { sc =>
-      def min[T: ClassTag : Numeric](elems: T*) = sc.parallelize(elems).min
+      def min[T: ClassTag : Numeric](elems: T*): SCollection[T] = sc.parallelize(elems).min
       min(1, 2, 3) should containSingleValue (1)
       min(1L, 2L, 3L) should containSingleValue (1L)
       min(1F, 2F, 3F) should containSingleValue (1F)
@@ -233,11 +278,11 @@ class SCollectionTest extends PipelineSpec {
       val p2 = sc.parallelize(0 to 1000).randomSplit(Array(0.2, 0.3, 0.5))
       p1.length shouldBe 2
       p2.length shouldBe 3
-      p1(0).count().map(round) should containSingleValue (300L)
-      p1(1).count().map(round) should containSingleValue (700L)
-      p2(0).count().map(round) should containSingleValue (200L)
-      p2(1).count().map(round) should containSingleValue (300L)
-      p2(2).count().map(round) should containSingleValue (500L)
+      p1(0).count.map(round) should containSingleValue (300L)
+      p1(1).count.map(round) should containSingleValue (700L)
+      p2(0).count.map(round) should containSingleValue (200L)
+      p2(1).count.map(round) should containSingleValue (300L)
+      p2(2).count.map(round) should containSingleValue (500L)
     }
   }
 
@@ -294,9 +339,9 @@ class SCollectionTest extends PipelineSpec {
     }
   }
 
-  it should "support sum()" in {
+  it should "support sum" in {
     runWithContext { sc =>
-      def sum[T: ClassTag : Semigroup](elems: T*) = sc.parallelize(elems).sum
+      def sum[T: ClassTag : Semigroup](elems: T*): SCollection[T] = sc.parallelize(elems).sum
       sum(1, 2, 3) should containSingleValue (6)
       sum(1L, 2L, 3L) should containSingleValue (6L)
       sum(1F, 2F, 3F) should containSingleValue (6F)
@@ -346,7 +391,8 @@ class SCollectionTest extends PipelineSpec {
 
   it should "support withFixedWindows()" in {
     runWithContext { sc =>
-      val p = sc.parallelizeTimestamped(Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
+      val p = sc.parallelizeTimestamped(
+        Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
       val r = p.withFixedWindows(Duration.millis(3)).top(10).map(_.toSet)
       r should containInAnyOrder (Seq(Set("a", "b", "c"), Set("d", "e", "f")))
     }
@@ -354,7 +400,8 @@ class SCollectionTest extends PipelineSpec {
 
   it should "support withSlidingWindows()" in {
     runWithContext { sc =>
-      val p = sc.parallelizeTimestamped(Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
+      val p = sc.parallelizeTimestamped(
+        Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
       val r = p.withSlidingWindows(Duration.millis(2), Duration.millis(3)).top(10).map(_.toSet)
       r should containInAnyOrder (Seq(Set("a", "b"), Set("d", "e")))
     }
@@ -362,7 +409,8 @@ class SCollectionTest extends PipelineSpec {
 
   it should "support withSessionWindows()" in {
     runWithContext { sc =>
-      val p = sc.parallelizeTimestamped(Seq("a", "b", "c", "d", "e"), Seq(0, 5, 10, 44, 55).map(new Instant(_)))
+      val p = sc.parallelizeTimestamped(
+        Seq("a", "b", "c", "d", "e"), Seq(0, 5, 10, 44, 55).map(new Instant(_)))
       val r = p
         .withSessionWindows(Duration.millis(10)).top(10).map(_.toSet)
       r should containInAnyOrder (Seq(Set("a", "b", "c"), Set("d"), Set("e")))
@@ -371,26 +419,98 @@ class SCollectionTest extends PipelineSpec {
 
   it should "support withGlobalWindow()" in {
     runWithContext { sc =>
-      val p = sc.parallelizeTimestamped(Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
+      val p = sc.parallelizeTimestamped(
+        Seq("a", "b", "c", "d", "e", "f"), (0 to 5).map(new Instant(_)))
       val r = p.withFixedWindows(Duration.millis(3)).withGlobalWindow().top(10).map(_.toSet)
       r should containInAnyOrder (Seq(Set("a", "b", "c", "d", "e", "f")))
     }
   }
 
-  it should "support withTimestamp()"  in {
+  it should "support withPaneInfo" in {
+    runWithContext { sc =>
+      val pane = PaneInfo.createPane(true, true, Timing.UNKNOWN, 0, 0)
+      val p = sc.parallelizeTimestamped(Seq("a", "b", "c"), Seq(1, 2, 3).map(new Instant(_)))
+      val r = p.withPaneInfo.map(kv => (kv._1, kv._2))
+      r should containInAnyOrder (Seq(("a", pane), ("b", pane), ("c", pane)))
+    }
+  }
+
+  it should "support withTimestamp" in {
     runWithContext { sc =>
       val p = sc.parallelizeTimestamped(Seq("a", "b", "c"), Seq(1, 2, 3).map(new Instant(_)))
-      val r = p.withTimestamp().map(kv => (kv._1, kv._2.getMillis))
+      val r = p.withTimestamp.map(kv => (kv._1, kv._2.getMillis))
       r should containInAnyOrder (Seq(("a", 1L), ("b", 2L), ("c", 3L)))
     }
   }
 
-  it should "support timestampBy()"  in {
+  it should "support withWindow" in {
+    runWithContext { sc =>
+      val w = classOf[GlobalWindow].getSimpleName
+      val p = sc.parallelizeTimestamped(Seq("a", "b", "c"), Seq(1, 2, 3).map(new Instant(_)))
+      val r = p.withWindow.map(kv => (kv._1, kv._2.getClass.getSimpleName))
+      r should containInAnyOrder (Seq(("a", w), ("b", w), ("c", w)))
+    }
+  }
+
+  it should "support timestampBy()" in {
     runWithContext { sc =>
       val p = sc.parallelize(Seq(1, 2, 3))
-      val r = p.timestampBy(new Instant(_)).withTimestamp().map(kv => (kv._1, kv._2.getMillis))
+      val r = p.timestampBy(new Instant(_)).withTimestamp.map(kv => (kv._1, kv._2.getMillis))
       r should containInAnyOrder (Seq((1, 1L), (2, 2L), (3, 3L)))
     }
   }
 
+  it should "support timestampBy() with skew" in {
+    runWithContext { sc =>
+      val p = sc.parallelize(Seq(1, 2, 3))
+      val r = p.timestampBy(new Instant(_), Duration.millis(1))
+        .withTimestamp.map(kv => (kv._1, kv._2.getMillis))
+      r should containInAnyOrder (Seq((1, 1L), (2, 2L), (3, 3L)))
+    }
+  }
+
+  it should "support debug to the stdout" in {
+    val stdOutMock = new MockedPrintStream
+    Console.withOut(stdOutMock){
+      runWithContext { sc =>
+        val r = sc.parallelize(1 to 3).debug()
+        r should containInAnyOrder(Seq(1, 2, 3))
+      }
+    }
+    stdOutMock.message should contain only("1", "2", "3")
+  }
+
+  it should "support debug to the stdout with prefix" in {
+    val stdOutMock = new MockedPrintStream
+    Console.withOut(stdOutMock) {
+      runWithContext { sc =>
+        val r = sc.parallelize(1 to 3).debug(prefix = "===")
+        r should containInAnyOrder(Seq(1, 2, 3))
+      }
+    }
+    stdOutMock.message should contain only ("===1", "===2", "===3")
+  }
+
+  it should "support debug to the stderr" in {
+    val stdErrMock = new MockedPrintStream
+    Console.withErr(stdErrMock){
+      runWithContext { sc =>
+        val r = sc.parallelize(1 to 3).debug(() => Console.err)
+        r should containInAnyOrder(Seq(1, 2, 3))
+      }
+    }
+    stdErrMock.message should contain only("1", "2", "3")
+  }
+
+  it should "support debug to a file" in {
+    val outFile = Files.createTempFile("debug_test", "txt")
+    val fileStream = new PrintStream(outFile.toFile)
+    Console.withOut(fileStream){
+      runWithContext { sc =>
+        val r = sc.parallelize(1 to 3).debug()
+        r should containInAnyOrder(Seq(1, 2, 3))
+      }
+    }
+    Files.readAllLines(outFile, Charsets.UTF_8) should contain only("1", "2", "3")
+  }
 }

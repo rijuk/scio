@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2016 Spotify AB.
  *
@@ -21,6 +20,7 @@
 // scalastyle:off cyclomatic.complexity
 // scalastyle:off file.size.limit
 // scalastyle:off line.size.limit
+// scalastyle:off method.length
 // scalastyle:off number.of.methods
 // scalastyle:off parameter.number
 
@@ -35,19 +35,21 @@ import scala.reflect.ClassTag
 
 object MultiJoin {
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)]): SCollection[(KEY, (Iterable[A], Iterable[B]))] = {
+  def toOptions[T](xs: Iterable[T]): Iterable[Option[T]] = if (xs.isEmpty) Iterable(None) else xs.map(Option(_))
+
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)]): SCollection[(KEY, (Iterable[A], Iterable[B]))] = {
     val (tagA, tagB) = (new TupleTag[A](), new TupleTag[B]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
       .and(tagB, b.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C]))] = {
     val (tagA, tagB, tagC) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -55,12 +57,12 @@ object MultiJoin {
       .and(tagC, c.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D]))] = {
     val (tagA, tagB, tagC, tagD) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -69,12 +71,12 @@ object MultiJoin {
       .and(tagD, d.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E]))] = {
     val (tagA, tagB, tagC, tagD, tagE) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -84,12 +86,12 @@ object MultiJoin {
       .and(tagE, e.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -100,12 +102,12 @@ object MultiJoin {
       .and(tagF, f.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -117,12 +119,12 @@ object MultiJoin {
       .and(tagG, g.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -135,12 +137,12 @@ object MultiJoin {
       .and(tagH, h.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -154,12 +156,12 @@ object MultiJoin {
       .and(tagI, i.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -174,12 +176,12 @@ object MultiJoin {
       .and(tagJ, j.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -195,12 +197,12 @@ object MultiJoin {
       .and(tagK, k.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -217,12 +219,12 @@ object MultiJoin {
       .and(tagL, l.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -240,12 +242,12 @@ object MultiJoin {
       .and(tagM, m.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -264,12 +266,12 @@ object MultiJoin {
       .and(tagN, n.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -289,12 +291,12 @@ object MultiJoin {
       .and(tagO, o.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -315,12 +317,12 @@ object MultiJoin {
       .and(tagP, p.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -342,12 +344,12 @@ object MultiJoin {
       .and(tagQ, q.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -370,12 +372,12 @@ object MultiJoin {
       .and(tagR, r.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala, r.getAll(tagR).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala, result.getAll(tagR).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -399,12 +401,12 @@ object MultiJoin {
       .and(tagS, s.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala, r.getAll(tagR).asScala, r.getAll(tagS).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala, result.getAll(tagR).asScala, result.getAll(tagS).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -429,12 +431,12 @@ object MultiJoin {
       .and(tagT, t.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala, r.getAll(tagR).asScala, r.getAll(tagS).asScala, r.getAll(tagT).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala, result.getAll(tagR).asScala, result.getAll(tagS).asScala, result.getAll(tagT).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T], Iterable[U]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T], Iterable[U]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -460,12 +462,12 @@ object MultiJoin {
       .and(tagU, u.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala, r.getAll(tagR).asScala, r.getAll(tagS).asScala, r.getAll(tagT).asScala, r.getAll(tagU).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala, result.getAll(tagR).asScala, result.getAll(tagS).asScala, result.getAll(tagT).asScala, result.getAll(tagU).asScala))
     }
   }
 
-  def coGroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag, V: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)], v: SCollection[(KEY, V)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T], Iterable[U], Iterable[V]))] = {
+  def cogroup[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag, V: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)], v: SCollection[(KEY, V)]): SCollection[(KEY, (Iterable[A], Iterable[B], Iterable[C], Iterable[D], Iterable[E], Iterable[F], Iterable[G], Iterable[H], Iterable[I], Iterable[J], Iterable[K], Iterable[L], Iterable[M], Iterable[N], Iterable[O], Iterable[P], Iterable[Q], Iterable[R], Iterable[S], Iterable[T], Iterable[U], Iterable[V]))] = {
     val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU, tagV) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U](), new TupleTag[V]())
     val keyed = KeyedPCollectionTuple
       .of(tagA, a.toKV.internal)
@@ -492,1269 +494,2214 @@ object MultiJoin {
       .and(tagV, v.toKV.internal)
       .apply(CallSites.getCurrent, CoGroupByKey.create())
     a.context.wrap(keyed).map { kv =>
-      val (k, r) = (kv.getKey, kv.getValue)
-      (k, (r.getAll(tagA).asScala, r.getAll(tagB).asScala, r.getAll(tagC).asScala, r.getAll(tagD).asScala, r.getAll(tagE).asScala, r.getAll(tagF).asScala, r.getAll(tagG).asScala, r.getAll(tagH).asScala, r.getAll(tagI).asScala, r.getAll(tagJ).asScala, r.getAll(tagK).asScala, r.getAll(tagL).asScala, r.getAll(tagM).asScala, r.getAll(tagN).asScala, r.getAll(tagO).asScala, r.getAll(tagP).asScala, r.getAll(tagQ).asScala, r.getAll(tagR).asScala, r.getAll(tagS).asScala, r.getAll(tagT).asScala, r.getAll(tagU).asScala, r.getAll(tagV).asScala))
+      val (key, result) = (kv.getKey, kv.getValue)
+      (key, (result.getAll(tagA).asScala, result.getAll(tagB).asScala, result.getAll(tagC).asScala, result.getAll(tagD).asScala, result.getAll(tagE).asScala, result.getAll(tagF).asScala, result.getAll(tagG).asScala, result.getAll(tagH).asScala, result.getAll(tagI).asScala, result.getAll(tagJ).asScala, result.getAll(tagK).asScala, result.getAll(tagL).asScala, result.getAll(tagM).asScala, result.getAll(tagN).asScala, result.getAll(tagO).asScala, result.getAll(tagP).asScala, result.getAll(tagQ).asScala, result.getAll(tagR).asScala, result.getAll(tagS).asScala, result.getAll(tagT).asScala, result.getAll(tagU).asScala, result.getAll(tagV).asScala))
     }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)]): SCollection[(KEY, (A, B))] = {
-    coGroup(a, b)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-        } yield (kv._1, (a, b))
-      }
+    val (tagA, tagB) = (new TupleTag[A](), new TupleTag[B]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+      } yield (key, (a, b))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)]): SCollection[(KEY, (A, B, C))] = {
-    coGroup(a, b, c)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-        } yield (kv._1, (a, b, c))
-      }
+    val (tagA, tagB, tagC) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+      } yield (key, (a, b, c))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)]): SCollection[(KEY, (A, B, C, D))] = {
-    coGroup(a, b, c, d)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-        } yield (kv._1, (a, b, c, d))
-      }
+    val (tagA, tagB, tagC, tagD) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+      } yield (key, (a, b, c, d))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)]): SCollection[(KEY, (A, B, C, D, E))] = {
-    coGroup(a, b, c, d, e)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-        } yield (kv._1, (a, b, c, d, e))
-      }
+    val (tagA, tagB, tagC, tagD, tagE) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+      } yield (key, (a, b, c, d, e))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)]): SCollection[(KEY, (A, B, C, D, E, F))] = {
-    coGroup(a, b, c, d, e, f)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-        } yield (kv._1, (a, b, c, d, e, f))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+      } yield (key, (a, b, c, d, e, f))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)]): SCollection[(KEY, (A, B, C, D, E, F, G))] = {
-    coGroup(a, b, c, d, e, f, g)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-        } yield (kv._1, (a, b, c, d, e, f, g))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+      } yield (key, (a, b, c, d, e, f, g))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)]): SCollection[(KEY, (A, B, C, D, E, F, G, H))] = {
-    coGroup(a, b, c, d, e, f, g, h)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-        } yield (kv._1, (a, b, c, d, e, f, g, h))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+      } yield (key, (a, b, c, d, e, f, g, h))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I))] = {
-    coGroup(a, b, c, d, e, f, g, h, i)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-          r <- kv._2._18
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+        r <- result.getAll(tagR).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-          r <- kv._2._18
-          s <- kv._2._19
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+        r <- result.getAll(tagR).asScala
+        s <- result.getAll(tagS).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-          r <- kv._2._18
-          s <- kv._2._19
-          t <- kv._2._20
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+        r <- result.getAll(tagR).asScala
+        s <- result.getAll(tagS).asScala
+        t <- result.getAll(tagT).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-          r <- kv._2._18
-          s <- kv._2._19
-          t <- kv._2._20
-          u <- kv._2._21
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+        r <- result.getAll(tagR).asScala
+        s <- result.getAll(tagS).asScala
+        t <- result.getAll(tagT).asScala
+        u <- result.getAll(tagU).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
+    }
   }
 
   def apply[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag, V: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)], v: SCollection[(KEY, V)]): SCollection[(KEY, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- kv._2._2
-          c <- kv._2._3
-          d <- kv._2._4
-          e <- kv._2._5
-          f <- kv._2._6
-          g <- kv._2._7
-          h <- kv._2._8
-          i <- kv._2._9
-          j <- kv._2._10
-          k <- kv._2._11
-          l <- kv._2._12
-          m <- kv._2._13
-          n <- kv._2._14
-          o <- kv._2._15
-          p <- kv._2._16
-          q <- kv._2._17
-          r <- kv._2._18
-          s <- kv._2._19
-          t <- kv._2._20
-          u <- kv._2._21
-          v <- kv._2._22
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU, tagV) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U](), new TupleTag[V]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .and(tagV, v.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- result.getAll(tagB).asScala
+        c <- result.getAll(tagC).asScala
+        d <- result.getAll(tagD).asScala
+        e <- result.getAll(tagE).asScala
+        f <- result.getAll(tagF).asScala
+        g <- result.getAll(tagG).asScala
+        h <- result.getAll(tagH).asScala
+        i <- result.getAll(tagI).asScala
+        j <- result.getAll(tagJ).asScala
+        k <- result.getAll(tagK).asScala
+        l <- result.getAll(tagL).asScala
+        m <- result.getAll(tagM).asScala
+        n <- result.getAll(tagN).asScala
+        o <- result.getAll(tagO).asScala
+        p <- result.getAll(tagP).asScala
+        q <- result.getAll(tagQ).asScala
+        r <- result.getAll(tagR).asScala
+        s <- result.getAll(tagS).asScala
+        t <- result.getAll(tagT).asScala
+        u <- result.getAll(tagU).asScala
+        v <- result.getAll(tagV).asScala
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)]): SCollection[(KEY, (A, Option[B]))] = {
-    coGroup(a, b)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-        } yield (kv._1, (a, b))
-      }
+    val (tagA, tagB) = (new TupleTag[A](), new TupleTag[B]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+      } yield (key, (a, b))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)]): SCollection[(KEY, (A, Option[B], Option[C]))] = {
-    coGroup(a, b, c)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-        } yield (kv._1, (a, b, c))
-      }
+    val (tagA, tagB, tagC) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+      } yield (key, (a, b, c))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D]))] = {
-    coGroup(a, b, c, d)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-        } yield (kv._1, (a, b, c, d))
-      }
+    val (tagA, tagB, tagC, tagD) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+      } yield (key, (a, b, c, d))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E]))] = {
-    coGroup(a, b, c, d, e)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e))
-      }
+    val (tagA, tagB, tagC, tagD, tagE) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+      } yield (key, (a, b, c, d, e))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F]))] = {
-    coGroup(a, b, c, d, e, f)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+      } yield (key, (a, b, c, d, e, f))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G]))] = {
-    coGroup(a, b, c, d, e, f, g)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+      } yield (key, (a, b, c, d, e, f, g))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H]))] = {
-    coGroup(a, b, c, d, e, f, g, h)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T], Option[U]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-          u <- if (kv._2._21.isEmpty) Iterable(None) else kv._2._21.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+        u <- toOptions(result.getAll(tagU).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
+    }
   }
 
   def left[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag, V: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)], v: SCollection[(KEY, V)]): SCollection[(KEY, (A, Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T], Option[U], Option[V]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
-      .flatMap { kv =>
-        for {
-          a <- kv._2._1
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-          u <- if (kv._2._21.isEmpty) Iterable(None) else kv._2._21.map(Option(_))
-          v <- if (kv._2._22.isEmpty) Iterable(None) else kv._2._22.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU, tagV) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U](), new TupleTag[V]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .and(tagV, v.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- result.getAll(tagA).asScala
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+        u <- toOptions(result.getAll(tagU).asScala)
+        v <- toOptions(result.getAll(tagV).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)]): SCollection[(KEY, (Option[A], Option[B]))] = {
-    coGroup(a, b)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-        } yield (kv._1, (a, b))
-      }
+    val (tagA, tagB) = (new TupleTag[A](), new TupleTag[B]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+      } yield (key, (a, b))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)]): SCollection[(KEY, (Option[A], Option[B], Option[C]))] = {
-    coGroup(a, b, c)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-        } yield (kv._1, (a, b, c))
-      }
+    val (tagA, tagB, tagC) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+      } yield (key, (a, b, c))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D]))] = {
-    coGroup(a, b, c, d)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-        } yield (kv._1, (a, b, c, d))
-      }
+    val (tagA, tagB, tagC, tagD) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+      } yield (key, (a, b, c, d))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E]))] = {
-    coGroup(a, b, c, d, e)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e))
-      }
+    val (tagA, tagB, tagC, tagD, tagE) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+      } yield (key, (a, b, c, d, e))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F]))] = {
-    coGroup(a, b, c, d, e, f)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+      } yield (key, (a, b, c, d, e, f))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G]))] = {
-    coGroup(a, b, c, d, e, f, g)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+      } yield (key, (a, b, c, d, e, f, g))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H]))] = {
-    coGroup(a, b, c, d, e, f, g, h)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T], Option[U]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-          u <- if (kv._2._21.isEmpty) Iterable(None) else kv._2._21.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+        u <- toOptions(result.getAll(tagU).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
+    }
   }
 
   def outer[KEY: ClassTag, A: ClassTag, B: ClassTag, C: ClassTag, D: ClassTag, E: ClassTag, F: ClassTag, G: ClassTag, H: ClassTag, I: ClassTag, J: ClassTag, K: ClassTag, L: ClassTag, M: ClassTag, N: ClassTag, O: ClassTag, P: ClassTag, Q: ClassTag, R: ClassTag, S: ClassTag, T: ClassTag, U: ClassTag, V: ClassTag](a: SCollection[(KEY, A)], b: SCollection[(KEY, B)], c: SCollection[(KEY, C)], d: SCollection[(KEY, D)], e: SCollection[(KEY, E)], f: SCollection[(KEY, F)], g: SCollection[(KEY, G)], h: SCollection[(KEY, H)], i: SCollection[(KEY, I)], j: SCollection[(KEY, J)], k: SCollection[(KEY, K)], l: SCollection[(KEY, L)], m: SCollection[(KEY, M)], n: SCollection[(KEY, N)], o: SCollection[(KEY, O)], p: SCollection[(KEY, P)], q: SCollection[(KEY, Q)], r: SCollection[(KEY, R)], s: SCollection[(KEY, S)], t: SCollection[(KEY, T)], u: SCollection[(KEY, U)], v: SCollection[(KEY, V)]): SCollection[(KEY, (Option[A], Option[B], Option[C], Option[D], Option[E], Option[F], Option[G], Option[H], Option[I], Option[J], Option[K], Option[L], Option[M], Option[N], Option[O], Option[P], Option[Q], Option[R], Option[S], Option[T], Option[U], Option[V]))] = {
-    coGroup(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
-      .flatMap { kv =>
-        for {
-          a <- if (kv._2._1.isEmpty) Iterable(None) else kv._2._1.map(Option(_))
-          b <- if (kv._2._2.isEmpty) Iterable(None) else kv._2._2.map(Option(_))
-          c <- if (kv._2._3.isEmpty) Iterable(None) else kv._2._3.map(Option(_))
-          d <- if (kv._2._4.isEmpty) Iterable(None) else kv._2._4.map(Option(_))
-          e <- if (kv._2._5.isEmpty) Iterable(None) else kv._2._5.map(Option(_))
-          f <- if (kv._2._6.isEmpty) Iterable(None) else kv._2._6.map(Option(_))
-          g <- if (kv._2._7.isEmpty) Iterable(None) else kv._2._7.map(Option(_))
-          h <- if (kv._2._8.isEmpty) Iterable(None) else kv._2._8.map(Option(_))
-          i <- if (kv._2._9.isEmpty) Iterable(None) else kv._2._9.map(Option(_))
-          j <- if (kv._2._10.isEmpty) Iterable(None) else kv._2._10.map(Option(_))
-          k <- if (kv._2._11.isEmpty) Iterable(None) else kv._2._11.map(Option(_))
-          l <- if (kv._2._12.isEmpty) Iterable(None) else kv._2._12.map(Option(_))
-          m <- if (kv._2._13.isEmpty) Iterable(None) else kv._2._13.map(Option(_))
-          n <- if (kv._2._14.isEmpty) Iterable(None) else kv._2._14.map(Option(_))
-          o <- if (kv._2._15.isEmpty) Iterable(None) else kv._2._15.map(Option(_))
-          p <- if (kv._2._16.isEmpty) Iterable(None) else kv._2._16.map(Option(_))
-          q <- if (kv._2._17.isEmpty) Iterable(None) else kv._2._17.map(Option(_))
-          r <- if (kv._2._18.isEmpty) Iterable(None) else kv._2._18.map(Option(_))
-          s <- if (kv._2._19.isEmpty) Iterable(None) else kv._2._19.map(Option(_))
-          t <- if (kv._2._20.isEmpty) Iterable(None) else kv._2._20.map(Option(_))
-          u <- if (kv._2._21.isEmpty) Iterable(None) else kv._2._21.map(Option(_))
-          v <- if (kv._2._22.isEmpty) Iterable(None) else kv._2._22.map(Option(_))
-        } yield (kv._1, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
-      }
+    val (tagA, tagB, tagC, tagD, tagE, tagF, tagG, tagH, tagI, tagJ, tagK, tagL, tagM, tagN, tagO, tagP, tagQ, tagR, tagS, tagT, tagU, tagV) = (new TupleTag[A](), new TupleTag[B](), new TupleTag[C](), new TupleTag[D](), new TupleTag[E](), new TupleTag[F](), new TupleTag[G](), new TupleTag[H](), new TupleTag[I](), new TupleTag[J](), new TupleTag[K](), new TupleTag[L](), new TupleTag[M](), new TupleTag[N](), new TupleTag[O](), new TupleTag[P](), new TupleTag[Q](), new TupleTag[R](), new TupleTag[S](), new TupleTag[T](), new TupleTag[U](), new TupleTag[V]())
+    val keyed = KeyedPCollectionTuple
+      .of(tagA, a.toKV.internal)
+      .and(tagB, b.toKV.internal)
+      .and(tagC, c.toKV.internal)
+      .and(tagD, d.toKV.internal)
+      .and(tagE, e.toKV.internal)
+      .and(tagF, f.toKV.internal)
+      .and(tagG, g.toKV.internal)
+      .and(tagH, h.toKV.internal)
+      .and(tagI, i.toKV.internal)
+      .and(tagJ, j.toKV.internal)
+      .and(tagK, k.toKV.internal)
+      .and(tagL, l.toKV.internal)
+      .and(tagM, m.toKV.internal)
+      .and(tagN, n.toKV.internal)
+      .and(tagO, o.toKV.internal)
+      .and(tagP, p.toKV.internal)
+      .and(tagQ, q.toKV.internal)
+      .and(tagR, r.toKV.internal)
+      .and(tagS, s.toKV.internal)
+      .and(tagT, t.toKV.internal)
+      .and(tagU, u.toKV.internal)
+      .and(tagV, v.toKV.internal)
+      .apply(CallSites.getCurrent, CoGroupByKey.create())
+    a.context.wrap(keyed).flatMap { kv =>
+      val (key, result) = (kv.getKey, kv.getValue)
+      for {
+        a <- toOptions(result.getAll(tagA).asScala)
+        b <- toOptions(result.getAll(tagB).asScala)
+        c <- toOptions(result.getAll(tagC).asScala)
+        d <- toOptions(result.getAll(tagD).asScala)
+        e <- toOptions(result.getAll(tagE).asScala)
+        f <- toOptions(result.getAll(tagF).asScala)
+        g <- toOptions(result.getAll(tagG).asScala)
+        h <- toOptions(result.getAll(tagH).asScala)
+        i <- toOptions(result.getAll(tagI).asScala)
+        j <- toOptions(result.getAll(tagJ).asScala)
+        k <- toOptions(result.getAll(tagK).asScala)
+        l <- toOptions(result.getAll(tagL).asScala)
+        m <- toOptions(result.getAll(tagM).asScala)
+        n <- toOptions(result.getAll(tagN).asScala)
+        o <- toOptions(result.getAll(tagO).asScala)
+        p <- toOptions(result.getAll(tagP).asScala)
+        q <- toOptions(result.getAll(tagQ).asScala)
+        r <- toOptions(result.getAll(tagR).asScala)
+        s <- toOptions(result.getAll(tagS).asScala)
+        t <- toOptions(result.getAll(tagT).asScala)
+        u <- toOptions(result.getAll(tagU).asScala)
+        v <- toOptions(result.getAll(tagV).asScala)
+      } yield (key, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    }
   }
 
 }
@@ -1762,5 +2709,6 @@ object MultiJoin {
 // scalastyle:on cyclomatic.complexity
 // scalastyle:on file.size.limit
 // scalastyle:on line.size.limit
+// scalastyle:on method.length
 // scalastyle:on number.of.methods
 // scalastyle:on parameter.number

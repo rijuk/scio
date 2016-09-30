@@ -44,11 +44,11 @@ object TfIdf {
     val (sc, args) = ContextAndArgs(cmdlineArgs)
 
     val uris = {
-      val baseUri = new URI(args.getOrElse("input", ExampleData.SHAKESPEARE_PATH))
-      val absoluteUri = if (baseUri.getScheme != null) {
-        baseUri
+      val base = new URI(args.getOrElse("input", ExampleData.SHAKESPEARE_PATH))
+      val absoluteUri = if (base.getScheme != null) {
+        base
       } else {
-        new URI("file", baseUri.getAuthority, baseUri.getPath, baseUri.getQuery, baseUri.getFragment)
+        new URI("file", base.getAuthority, base.getPath, base.getQuery, base.getFragment)
       }
 
       if (absoluteUri.getScheme == "file") {
@@ -61,7 +61,8 @@ object TfIdf {
           absoluteUri.getPath + "*",
           absoluteUri.getQuery,
           absoluteUri.getFragment)
-        sc.options.asInstanceOf[GcsOptions].getGcsUtil.expand(GcsPath.fromUri(glob)).asScala.map(_.toUri).toSet
+        sc.options.asInstanceOf[GcsOptions].getGcsUtil
+          .expand(GcsPath.fromUri(glob)).asScala.map(_.toUri).toSet
       } else {
         throw new IllegalArgumentException(s"Unsupported scheme ${absoluteUri.getScheme}")
       }
@@ -77,19 +78,20 @@ object TfIdf {
     }  // (d, t)
 
     val uriToWordAndCount = uriToWords
-      .countByValue()  // ((d, t), tf)
+      .countByValue  // ((d, t), tf)
       .map(t => (t._1._1, (t._1._2, t._2)))  // (d, (t, tf))
 
-
-    val wordToDf = uriToWords.distinct().values.countByValue()  // (t, df)
-      .cross(uriToContent.keys.distinct().count())  // N
+    val wordToDf = uriToWords.distinct.values.countByValue  // (t, df)
+      .cross(uriToContent.keys.distinct.count)  // N
       .map { case ((t, df), numDocs) => (t, df.toDouble / numDocs) }  // (t, df/N)
 
-    uriToWords.keys.countByValue()  // (d, |d|)
+    uriToWords.keys.countByValue  // (d, |d|)
       .join(uriToWordAndCount)  // (d, (|d|, (t, tf)))
       .map { case (d, (dl, (t, tf))) => (t, (d, tf.toDouble / dl)) }  // (t, (d, tf/|d|))
       .join(wordToDf)  // (t, ((d, tf/|d|), df/N))
-      .map { case (t, ((d, tf), df)) => Seq(t, d, tf * math.log(1 / df)).mkString("\t") }  // (t, d, tf/|d|*log(N/df)
+      .map { case (t, ((d, tf), df)) =>
+        Seq(t, d, tf * math.log(1 / df)).mkString("\t")  // (t, d, tf/|d|*log(N/df)
+      }
       .saveAsTextFile(args("output"))
 
     sc.close()

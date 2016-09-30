@@ -27,8 +27,10 @@ import org.joda.time.format.DateTimeFormat
 import org.joda.time.{Duration, Instant}
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
-case class LaneInfo(stationId: String, lane: String, direction: String, freeway: String, recordedTimestamp: String,
+case class LaneInfo(stationId: String, lane: String, direction: String, freeway: String,
+                    recordedTimestamp: String,
                     laneFlow: Int, laneAO: Double, laneAS: Double, totalFlow: Int)
 
 /*
@@ -99,7 +101,7 @@ object TrafficMaxLaneFlow {
               laneFlow, laneAvgOccupancy, laneAvgSpeed, totalFlow))
           }
         } catch {
-          case _: Throwable => Seq.empty
+          case NonFatal(_) => Seq.empty
         }
       }
 
@@ -112,10 +114,12 @@ object TrafficMaxLaneFlow {
     }
 
     p
-      .withSlidingWindows(Duration.standardMinutes(windowDuration), Duration.standardMinutes(windowSlideEvery))
+      .withSlidingWindows(
+        Duration.standardMinutes(windowDuration),
+        Duration.standardMinutes(windowSlideEvery))
       .maxByKey(Ordering.by(_.laneFlow))
       .values
-      .withTimestamp()
+      .withTimestamp
       .map { kv =>  // (lane flow, timestamp)
         val (l, ts) = kv
         TableRow(

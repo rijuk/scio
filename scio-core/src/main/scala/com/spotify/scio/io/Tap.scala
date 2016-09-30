@@ -20,17 +20,20 @@ package com.spotify.scio.io
 import java.util.UUID
 
 import com.google.api.services.bigquery.model.TableReference
-import com.google.cloud.dataflow.sdk.util.CoderUtils
+import com.google.cloud.dataflow.sdk.coders.Coder
 import com.spotify.scio.ScioContext
 import com.spotify.scio.bigquery.{BigQueryClient, TableRow}
-import com.spotify.scio.coders.KryoAtomicCoder
+import com.spotify.scio.coders.AvroBytesUtil
+import com.spotify.scio.util.ScioUtil
 import com.spotify.scio.values.SCollection
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 
 import scala.reflect.ClassTag
 
 /**
- * Placeholder to an external data set that can be either read into memory or opened as an SCollection.
+ * Placeholder to an external data set that can either be load into memory as an iterator or opened
+ * in a new ScioContext as an SCollection.
  */
 trait Tap[T] { self =>
 
@@ -78,8 +81,10 @@ case class BigQueryTap(table: TableReference) extends Tap[TableRow] {
 /** Tap for object files on local file system or GCS. */
 case class ObjectFileTap[T: ClassTag](path: String) extends Tap[T] {
   override def value: Iterator[T] = {
-    val coder = KryoAtomicCoder[T]
-    FileStorage(path).textFile.map(CoderUtils.decodeFromBase64(coder, _))
+    val elemCoder = ScioUtil.getScalaCoder[T]
+    FileStorage(path).avroFile[GenericRecord](AvroBytesUtil.schema).map { r =>
+      AvroBytesUtil.decode(elemCoder, r)
+    }
   }
   override def open(sc: ScioContext): SCollection[T] = sc.objectFile(path)
 }
@@ -87,5 +92,6 @@ case class ObjectFileTap[T: ClassTag](path: String) extends Tap[T] {
 private[scio] class InMemoryTap[T: ClassTag] extends Tap[T] {
   private[scio] val id: String = UUID.randomUUID().toString
   override def value: Iterator[T] = InMemorySinkManager.get(id).iterator
-  override def open(sc: ScioContext): SCollection[T] = sc.parallelize[T](InMemorySinkManager.get(id))
+  override def open(sc: ScioContext): SCollection[T] =
+    sc.parallelize[T](InMemorySinkManager.get(id))
 }

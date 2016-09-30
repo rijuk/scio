@@ -17,6 +17,7 @@
 
 package com.spotify.scio.values
 
+import com.spotify.scio._
 import com.spotify.scio.util.StatCounter
 
 /**
@@ -29,31 +30,31 @@ class DoubleSCollectionFunctions(self: SCollection[Double]) {
    * StatCounter]] object that captures the mean, variance and count of the SCollection's elements
    * in one operation.
    */
-  def stats(): SCollection[StatCounter] = self.combine(StatCounter(_))(_.merge(_))(_.merge(_))
+  def stats: SCollection[StatCounter] = self.combine(StatCounter(_))(_.merge(_))(_.merge(_))
 
   // Implemented in SCollection
-  // def mean(): SCollection[Double] = this.stats().map(_.mean)
+  // def mean: SCollection[Double] = this.stats().map(_.mean)
 
   // Implemented in SCollection
-  // def sum(): SCollection[Double] = this.stats().map(_.sum)
+  // def sum: SCollection[Double] = this.stats().map(_.sum)
 
   /** Compute the standard deviation of this SCollection's elements. */
-  def stdev(): SCollection[Double] = this.stats().map(_.stdev)
+  def stdev: SCollection[Double] = self.transform(_.stats.map(_.stdev))
 
   /** Compute the variance of this SCollection's elements. */
-  def variance(): SCollection[Double] = this.stats().map(_.variance)
+  def variance: SCollection[Double] = self.transform(_.stats.map(_.variance))
 
   /**
    * Compute the sample standard deviation of this SCollection's elements (which corrects for bias
    * in estimating the standard deviation by dividing by N-1 instead of N).
    */
-  def sampleStdev(): SCollection[Double] = this.stats().map(_.sampleStdev)
+  def sampleStdev: SCollection[Double] = self.transform(_.stats.map(_.sampleStdev))
 
   /**
    * Compute the sample variance of this SCollection's elements (which corrects for bias in
    * estimating the variance by dividing by N-1 instead of N).
    */
-  def sampleVariance(): SCollection[Double] = this.stats().map(_.sampleVariance)
+  def sampleVariance: SCollection[Double] = self.transform(_.stats.map(_.sampleVariance))
 
   // Ported from org.apache.spark.rdd.DoubleRDDFunctions
 
@@ -112,9 +113,7 @@ class DoubleSCollectionFunctions(self: SCollection[Double]) {
                             evenBuckets: Boolean = false): SCollection[Array[Long]] = {
     // Map buckets into a side input of bucket function
     val side = buckets.map { b =>
-      if (b.length < 2) {
-        throw new IllegalArgumentException("buckets array must have at least two elements")
-      }
+      require(b.length >= 2, "buckets array must have at least two elements")
       // Basic bucket function. This works using Java's built in Array
       // binary search. Takes log(size(buckets))
       def basicBucketFunction(e: Double): Option[Int] = {
@@ -174,17 +173,14 @@ class DoubleSCollectionFunctions(self: SCollection[Double]) {
         bucketFunction(x).iterator
       }
       .toSCollection
-      .countByValue()  // Count occurrences of each bucket
+      .countByValue  // Count occurrences of each bucket
       .cross(bucketSize)  // Replicate bucket size
       .map { case ((bin, count), size) =>
         val b = Array.fill(size)(0L)
         b(bin) = count
         b
       }
-      .reduce { (b1, b2) =>
-        b1.indices.foreach(i => b1(i) += b2(i))
-        b1
-      }
+      .sum
 
     // Workaround since hist may be empty
     val bSide = bucketSize.asSingletonSideInput

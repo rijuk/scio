@@ -20,9 +20,12 @@ package com.spotify.scio
 import java.lang.{Float => JFloat}
 
 import com.google.cloud.dataflow.sdk.coders._
+import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder
 import com.google.cloud.dataflow.sdk.values.{KV, TypeDescriptor}
-import com.spotify.scio.coders.KryoAtomicCoder
+import com.google.protobuf.Message
+import com.spotify.scio.coders.{FloatCoder, KryoAtomicCoder}
 import com.spotify.scio.util.ScioUtil
+import org.apache.avro.specific.SpecificRecord
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -44,21 +47,30 @@ private[scio] object Implicits {
 
       // Fall back to Kryo
       r.setFallbackCoderProvider(new CoderProvider {
-        override def getCoder[T](`type`: TypeDescriptor[T]): Coder[T] = KryoAtomicCoder[T]
+        override def getCoder[T](`type`: TypeDescriptor[T]): Coder[T] = {
+          val cls = `type`.getRawType
+          if (classOf[SpecificRecord] isAssignableFrom cls) {
+            // TODO: what about GenericRecord?
+            AvroCoder.of(cls).asInstanceOf[Coder[T]]
+          } else if (classOf[Message] isAssignableFrom cls) {
+            ProtoCoder.of(cls.asSubclass(classOf[Message])).asInstanceOf[Coder[T]]
+          } else {
+            KryoAtomicCoder[T]
+          }
+        }
       })
     }
 
     def getScalaCoder[T: ClassTag]: Coder[T] = {
-      val tt = TypeDescriptor.of(ScioUtil.classOf[T])
       val coder = try {
-        r.getDefaultCoder(tt)
+        // This may fail in come cases, i.e. Malformed class name in REPL
+        // Always fall back to Kryo
+        r.getDefaultCoder(TypeDescriptor.of(ScioUtil.classOf[T]))
       } catch {
-        case e: Throwable=> null
+        // Malformed class name is a `java.lang.InternalError` and cannot be caught by NonFatal
+        case _: Throwable => null
       }
 
-      // For classes not registered in CoderRegistry, it returns
-      // SerializableCoder if the class extends Serializable or null otherwise.
-      // Override both cases with KryoAtomicCoder.
       if (coder == null || coder.getClass == classOf[SerializableCoder[T]]) {
         KryoAtomicCoder[T]
       } else {
@@ -66,7 +78,8 @@ private[scio] object Implicits {
       }
     }
 
-    def getScalaKvCoder[K: ClassTag, V: ClassTag]: Coder[KV[K, V]] = KvCoder.of(getScalaCoder[K], getScalaCoder[V])
+    def getScalaKvCoder[K: ClassTag, V: ClassTag]: Coder[KV[K, V]] =
+      KvCoder.of(getScalaCoder[K], getScalaCoder[V])
 
   }
 

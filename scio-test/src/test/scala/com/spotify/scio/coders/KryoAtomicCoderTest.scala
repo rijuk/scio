@@ -17,11 +17,15 @@
 
 package com.spotify.scio.coders
 
+import com.google.api.services.bigquery.model.TableRow
 import com.google.cloud.dataflow.sdk.coders.Coder
 import com.google.cloud.dataflow.sdk.values.KV
+import com.google.common.collect.ImmutableList
+import com.spotify.scio.avro.AvroUtils._
 import com.spotify.scio.avro.TestRecord
 import com.spotify.scio.coders.CoderTestUtils._
 import com.spotify.scio.testing.PipelineSpec
+import org.joda.time.Instant
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 import scala.reflect.ClassTag
@@ -31,18 +35,16 @@ class KryoAtomicCoderTest extends PipelineSpec {
   import com.spotify.scio.testing.TestingUtils._
 
   type CoderFactory = () => Coder[Any]
-  val cf = () => new KryoAtomicCoder
+  val cf = () => KryoAtomicCoder[Any]
 
-  class RoundTripMatcher[T: ClassTag](value: T) extends Matcher[CoderFactory] {
+  private def roundTrip[T: ClassTag](value: T) = new Matcher[CoderFactory] {
     override def apply(left: CoderFactory): MatchResult = {
       MatchResult(
         testRoundTrip(left(), left(), value),
-        s"CoderRegistry did not round trip $value",
-        s"CoderRegistry did round trip $value")
+        s"Coder did not round trip $value",
+        s"Coder did round trip $value")
     }
   }
-
-  private def roundTrip[T: ClassTag](value: T) = new RoundTripMatcher[T](value)
 
   "KryoAtomicCoder" should "support Scala collections" in {
     cf should roundTrip (Seq(1, 2, 3))
@@ -84,6 +86,14 @@ class KryoAtomicCoderTest extends PipelineSpec {
     cf should roundTrip (KV.of("key", (10, 10.0)))
     cf should roundTrip (KV.of("key", newSpecificRecord(1)))
     cf should roundTrip (KV.of("key", newGenericRecord(1)))
+  }
+
+  it should "support Instant" in {
+    cf should roundTrip (Instant.now())
+  }
+  it should "support TableRow" in {
+    val r = new TableRow().set("repeated_field", ImmutableList.of("a", "b"))
+    cf should roundTrip (r)
   }
 
 }

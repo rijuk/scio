@@ -30,7 +30,7 @@ import scala.reflect.ClassTag
  * load on the final global combine step.
  */
 class SCollectionWithFanout[T: ClassTag] private[values] (val internal: PCollection[T],
-                                                          private[scio] val context: ScioContext,
+                                                          val context: ScioContext,
                                                           private val fanout: Int)
   extends PCollectionWrapper[T] {
 
@@ -43,8 +43,10 @@ class SCollectionWithFanout[T: ClassTag] private[values] (val internal: PCollect
    * of these functions are allowed to modify and return their first argument instead of creating
    * a new U to avoid memory allocation.
    */
-  def aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) => U, combOp: (U, U) => U): SCollection[U] =
-    this.apply(Combine.globally(Functions.aggregateFn(zeroValue)(seqOp, combOp)).withFanout(fanout))
+  def aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) => U,
+                                           combOp: (U, U) => U): SCollection[U] =
+    this.pApply(
+      Combine.globally(Functions.aggregateFn(zeroValue)(seqOp, combOp)).withFanout(fanout))
 
   /**
    * Generic function to combine the elements using a custom set of aggregation functions. Turns
@@ -61,7 +63,10 @@ class SCollectionWithFanout[T: ClassTag] private[values] (val internal: PCollect
   def combine[C: ClassTag](createCombiner: T => C)
                           (mergeValue: (C, T) => C)
                           (mergeCombiners: (C, C) => C): SCollection[C] =
-    this.apply(Combine.globally(Functions.combineFn(createCombiner, mergeValue, mergeCombiners)).withFanout(fanout))
+    this.pApply(
+      Combine
+        .globally(Functions.combineFn(createCombiner, mergeValue, mergeCombiners))
+        .withFanout(fanout))
 
   /**
    * Aggregate the elements using a given associative function and a neutral "zero value". The
@@ -69,27 +74,27 @@ class SCollectionWithFanout[T: ClassTag] private[values] (val internal: PCollect
    * allocation; however, it should not modify t2.
    */
   def fold(zeroValue: T)(op: (T, T) => T): SCollection[T] =
-    this.apply(Combine.globally(Functions.aggregateFn(zeroValue)(op, op)).withFanout(fanout))
+    this.pApply(Combine.globally(Functions.aggregateFn(zeroValue)(op, op)).withFanout(fanout))
 
   /**
    * Fold with [[com.twitter.algebird.Monoid Monoid]], which defines the associative function and
    * "zero value" for T. This could be more powerful and better optimized in some cases.
    */
   def fold(implicit mon: Monoid[T]): SCollection[T] =
-    this.apply(Combine.globally(Functions.reduceFn(mon)).withFanout(fanout))
+    this.pApply(Combine.globally(Functions.reduceFn(mon)).withFanout(fanout))
 
   /**
    * Reduce the elements of this SCollection using the specified commutative and associative
    * binary operator.
    */
   def reduce(op: (T, T) => T): SCollection[T] =
-    this.apply(Combine.globally(Functions.reduceFn(op)).withFanout(fanout))
+    this.pApply(Combine.globally(Functions.reduceFn(op)).withFanout(fanout))
 
   /**
    * Reduce with [[com.twitter.algebird.Semigroup Semigroup]]. This could be more powerful and
    * better optimized in some cases.
    */
   def sum(implicit sg: Semigroup[T]): SCollection[T] =
-    this.apply(Combine.globally(Functions.reduceFn(sg)).withFanout(fanout))
+    this.pApply(Combine.globally(Functions.reduceFn(sg)).withFanout(fanout))
 
 }

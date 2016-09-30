@@ -56,6 +56,9 @@ object BigQueryType {
 
     /** `T` to TableRow converter. */
     def toTableRow: (T => TableRow)
+
+    /** Get a pretty string representation of the schema. */
+    def toPrettyString(indent: Int = 0): String
   }
 
   /**
@@ -86,7 +89,7 @@ object BigQueryType {
    * Also generate a companion object with convenience methods.
    * @group annotation
    */
-  class fromTable(tableSpec: String) extends StaticAnnotation {
+  class fromTable(tableSpec: String, args: String*) extends StaticAnnotation {
     def macroTransform(annottees: Any*): Any = macro TypeProvider.tableImpl
   }
 
@@ -149,12 +152,12 @@ object BigQueryType {
    * example:
    *
    * {{{
-   * @BigQueryType.toTable()
+   * @BigQueryType.toTable
    * case class Result(name: String, score: Double)
    * }}}
    * @group annotation
    */
-  class toTable() extends StaticAnnotation {
+  class toTable extends StaticAnnotation {
     def macroTransform(annottees: Any*): Any = macro TypeProvider.toTableImpl
   }
 
@@ -176,7 +179,7 @@ object BigQueryType {
   def toTableRow[T]: (T => TableRow) = macro ConverterProvider.toTableRowImpl[T]
 
   /** Create a new BigQueryType instance. */
-  def apply[T: ClassTag : TypeTag]: BigQueryType[T] = new BigQueryType[T]
+  def apply[T: TypeTag]: BigQueryType[T] = new BigQueryType[T]
 
 }
 

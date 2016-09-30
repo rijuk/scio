@@ -43,14 +43,14 @@ package object experimental {
 
   /** Enhanced version of [[ScioContext]] with experimental features. */
   // TODO: scala 2.11
-  // implicit class ExperimentalDataflowContext(private val self: ScioContext) extends AnyVal {
-  implicit class ExperimentalDataflowContext(val self: ScioContext) {
+  // implicit class ExperimentalScioContext(private val self: ScioContext) extends AnyVal {
+  implicit class ExperimentalScioContext(val self: ScioContext) {
 
     /**
      * Get a typed SCollection for a BigQuery SELECT query or table.
      *
      * Note that `T` must be annotated with [[BigQueryType.fromSchema]],
-     * [[BigQueryType.fromTable]], or [[BigQueryType.fromQuery]].
+     * [[BigQueryType.fromTable]], [[BigQueryType.fromQuery]], or [[BigQueryType.toTable]].
      *
      * By default the source (table or query) specified in the annotation will be used, but it can
      * be overridden with the `newSource` parameter. For example:
@@ -64,20 +64,33 @@ package object experimental {
      *
      * // Read from [myproject:samples.gsod] instead.
      * sc.typedBigQuery[Row]("myproject:samples.gsod")
+     *
+     * // Read from a query instead.
+     * sc.typedBigQuery[Row]("SELECT * FROM [publicdata:samples.gsod] LIMIT 1000")
      * }}}
      */
-    def typedBigQuery[T <: HasAnnotation : ClassTag : TypeTag](newSource: String = null): SCollection[T] = {
+    def typedBigQuery[T <: HasAnnotation : ClassTag : TypeTag](newSource: String = null)
+    : SCollection[T] = {
       val bqt = BigQueryType[T]
-
-      if (bqt.isTable) {
-        val table = if (newSource != null) BigQueryIO.parseTableSpec(newSource) else bqt.table.get
-        self.bigQueryTable(table).map(bqt.fromTableRow)
-      } else if (bqt.isQuery) {
-        val query = if (newSource != null) newSource else bqt.query.get
-        self.bigQuerySelect(query).map(bqt.fromTableRow)
+      val rows = if (newSource == null) {
+        // newSource is missing, T's companion object must have either table or query
+        if (bqt.isTable) {
+          self.bigQueryTable(bqt.table.get)
+        } else if (bqt.isQuery) {
+          self.bigQuerySelect(bqt.query.get)
+        } else {
+          throw new IllegalArgumentException(s"Missing table or query field in companion object")
+        }
       } else {
-        throw new IllegalArgumentException(s"Missing table or query field in companion")
+        // newSource can be either table or query
+        val table = scala.util.Try(BigQueryIO.parseTableSpec(newSource)).toOption
+        if (table.isDefined) {
+          self.bigQueryTable(table.get)
+        } else {
+          self.bigQuerySelect(newSource)
+        }
       }
+      rows.map(bqt.fromTableRow)
     }
 
   }
@@ -97,7 +110,8 @@ package object experimental {
     def saveAsTypedBigQuery(table: TableReference,
                             writeDisposition: WriteDisposition,
                             createDisposition: CreateDisposition)
-                           (implicit ct: ClassTag[T], tt: TypeTag[T], ev: T <:< HasAnnotation): Future[Tap[T]] = {
+                           (implicit ct: ClassTag[T], tt: TypeTag[T], ev: T <:< HasAnnotation)
+    : Future[Tap[T]] = {
       val bqt = BigQueryType[T]
       import scala.concurrent.ExecutionContext.Implicits.global
       self
@@ -113,7 +127,7 @@ package object experimental {
      * This could be a complete case class with [[BigQueryType.toTable]]. For example:
      *
      * {{{
-     * @BigQueryType.toTable()
+     * @BigQueryType.toTable
      * case class Result(name: String, score: Double)
      *
      * val p: SCollection[Result] = // process data and convert elements to Result
@@ -135,7 +149,8 @@ package object experimental {
     def saveAsTypedBigQuery(tableSpec: String,
                             writeDisposition: WriteDisposition = null,
                             createDisposition: CreateDisposition = null)
-                           (implicit ct: ClassTag[T], tt: TypeTag[T], ev: T <:< HasAnnotation): Future[Tap[T]] =
+                           (implicit ct: ClassTag[T], tt: TypeTag[T], ev: T <:< HasAnnotation)
+    : Future[Tap[T]] =
       saveAsTypedBigQuery(BigQueryIO.parseTableSpec(tableSpec), writeDisposition, createDisposition)
 
   }
@@ -147,7 +162,7 @@ package object experimental {
      * Get a typed iterator for a BigQuery SELECT query or table.
      *
      * Note that `T` must be annotated with [[BigQueryType.fromSchema]],
-     * [[BigQueryType.fromTable]], or [[BigQueryType.fromQuery]].
+     * [[BigQueryType.fromTable]], [[BigQueryType.fromQuery]], or [[BigQueryType.toTable]].
      *
      * By default the source (table or query) specified in the annotation will be used, but it can
      * be overridden with the `newSource` parameter. For example:
@@ -161,39 +176,60 @@ package object experimental {
      *
      * // Read from [myproject:samples.gsod] instead.
      * bq.getTypedRows[Row]("myproject:samples.gsod")
+     *
+     * // Read from a query instead.
+     * sc.getTypedRows[Row]("SELECT * FROM [publicdata:samples.gsod] LIMIT 1000")
      * }}}
      */
-    def getTypedRows[T <: HasAnnotation : ClassTag : TypeTag](newSource: String = null): Iterator[T] = {
+    def getTypedRows[T <: HasAnnotation : TypeTag](newSource: String = null)
+    : Iterator[T] = {
       val bqt = BigQueryType[T]
-      if (bqt.isTable) {
-        val table = if (newSource != null) BigQueryIO.parseTableSpec(newSource) else bqt.table.get
-        self.getTableRows(table).map(bqt.fromTableRow)
-      } else if (bqt.isQuery) {
-        val query = if (newSource != null) newSource else bqt.query.get
-        self.getQueryRows(query).map(bqt.fromTableRow)
+      val rows = if (newSource == null) {
+        // newSource is missing, T's companion object must have either table or query
+        if (bqt.isTable) {
+          self.getTableRows(bqt.table.get)
+        } else if (bqt.isQuery) {
+          self.getQueryRows(bqt.query.get)
+        } else {
+          throw new IllegalArgumentException(s"Missing table or query field in companion object")
+        }
       } else {
-        throw new IllegalArgumentException(s"Missing table or query field in companion")
+        // newSource can be either table or query
+        val table = scala.util.Try(BigQueryIO.parseTableSpec(newSource)).toOption
+        if (table.isDefined) {
+          self.getTableRows(table.get)
+        } else {
+          self.getQueryRows(newSource)
+        }
       }
+      rows.map(bqt.fromTableRow)
     }
 
     /**
-     * Write a List to a BigQuery table. Note that element type `T` must be annotated with [[BigQueryType]].
+     * Write a List of rows to a BigQuery table. Note that element type `T` must be annotated with
+     * [[BigQueryType]].
      */
-
-    def writeTypedRows[T <: HasAnnotation : ClassTag : TypeTag](table: TableReference,
-                                                                rows: List[T],
-                                                                writeDisposition: WriteDisposition,
-                                                                createDisposition: CreateDisposition): Unit = {
-
+    def writeTypedRows[T <: HasAnnotation : TypeTag]
+    (table: TableReference, rows: List[T],
+     writeDisposition: WriteDisposition,
+     createDisposition: CreateDisposition): Unit = {
       val bqt = BigQueryType[T]
-      self.writeTableRows(table, rows.map(bqt.toTableRow), bqt.schema, writeDisposition, createDisposition)
+      self.writeTableRows(
+        table, rows.map(bqt.toTableRow), bqt.schema,
+        writeDisposition, createDisposition)
     }
 
-    def writeTypedRows[T <: HasAnnotation : ClassTag : TypeTag](tableSpec: String,
-                                                                rows: List[T],
-                                                                writeDisposition: WriteDisposition = WRITE_EMPTY,
-                                                                createDisposition: CreateDisposition = CREATE_IF_NEEDED): Unit =
-      writeTypedRows(BigQueryIO.parseTableSpec(tableSpec), rows, writeDisposition, createDisposition)
+    /**
+     * Write a List of rows to a BigQuery table. Note that element type `T` must be annotated with
+     * [[BigQueryType]].
+     */
+    def writeTypedRows[T <: HasAnnotation : TypeTag]
+    (tableSpec: String, rows: List[T],
+     writeDisposition: WriteDisposition = WRITE_EMPTY,
+     createDisposition: CreateDisposition = CREATE_IF_NEEDED): Unit =
+      writeTypedRows(
+        BigQueryIO.parseTableSpec(tableSpec), rows,
+        writeDisposition, createDisposition)
 
   }
 

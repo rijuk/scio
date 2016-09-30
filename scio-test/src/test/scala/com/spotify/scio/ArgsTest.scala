@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Spotify AB.
+ * Copyright 2016 Spotify AB.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,10 +40,22 @@ class ArgsTest extends FlatSpec with Matchers {
   }
 
   it should "support required" in {
-    val args = Args("--key1=value1".split(" "))
-    args.required("key1") shouldBe "value1"
-    intercept[IllegalArgumentException] { args.required("key2") }
+    Args("--key=value".split(" ")).required("key") shouldBe "value"
   }
+
+  // scalastyle:off no.whitespace.before.left.bracket
+  it should "fail required with missing value" in {
+    the[IllegalArgumentException] thrownBy {
+      Args(Array.empty).required("key")
+    } should have message "Missing value for property 'key'"
+  }
+
+  it should "fail required with multiple values" in {
+    the [IllegalArgumentException] thrownBy {
+      Args("--key=value1 --key=value2".split(" ")).required("key")
+    } should have message "Multiple values for property 'key'"
+  }
+  // scalastyle:on no.whitespace.before.left.bracket
 
   it should "support int" in {
     val args = Args("--key1=10".split(" "))
@@ -70,11 +82,12 @@ class ArgsTest extends FlatSpec with Matchers {
   }
 
   it should "support boolean" in {
-    val args = Args("--key1=true --key2=false".split(" "))
+    val args = Args("--key1=true --key2=false --key3".split(" "))
     args.boolean("key1") shouldBe true
     args.boolean("key2") shouldBe false
-    args.boolean("key3", true) shouldBe true
-    args.boolean("key4", false) shouldBe false
+    args.boolean("key3") shouldBe true
+    args.boolean("key4", true) shouldBe true
+    args.boolean("key5", false) shouldBe false
   }
 
 }

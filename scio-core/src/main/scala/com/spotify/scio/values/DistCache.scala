@@ -22,7 +22,6 @@ import java.net.URI
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.cloud.dataflow.sdk.options.{GcsOptions, PipelineOptions}
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath
 import com.google.common.base.Charsets
 import com.google.common.hash.Hashing
@@ -35,41 +34,59 @@ sealed trait DistCache[F] extends Serializable {
   def apply(): F
 }
 
+private[scio] object FileDistCache
+
 private[scio] abstract class FileDistCache[F](options: GcsOptions) extends DistCache[F] {
 
   override def apply(): F = data
 
-  protected def init(): F
+  protected def init: F
 
-  protected lazy val data: F = init()
+  protected lazy val data: F = init
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[DistCache[_]])
 
   // Serialize options to avoid shipping it with closure
   private val json: String = new ObjectMapper().writeValueAsString(options)
-  private def opts: GcsOptions = new ObjectMapper().readValue(json, classOf[PipelineOptions]).as(classOf[GcsOptions])
+  private def opts: GcsOptions = new ObjectMapper()
+    .readValue(json, classOf[PipelineOptions])
+    .as(classOf[GcsOptions])
 
   private def fetchFromGCS(uri: URI, prefix: String): File = {
     val path = prefix + uri.getPath.split("/").last
     val file = new File(path)
 
-    if (!file.exists()) {
+    // There can be multiple DoFns/Threads trying to fetch the same data/files on the same
+    // worker. To prevent from situation where some workers see incomplete data, and keep the
+    // solution simple - let's synchronize on FileDistCache companion object (which is a singleton).
+    // There is a downside - more specifically we might have to wait a bit longer then in more
+    // optimal solution, but, simplicity > performance.
+    FileDistCache.synchronized {
       val gcsUtil = opts.getGcsUtil
-
-      val fos: FileOutputStream = new FileOutputStream(path)
-      val dst = fos.getChannel
       val src = gcsUtil.open(GcsPath.fromUri(uri))
 
-      val size = dst.transferFrom(src, 0, src.size())
-      logger.info(s"DistCache $uri fetched to $path, size: $size")
+      if (file.exists() && src.size() != file.length()) {
+        // File exists but has different size than source file, most likely there was an issue
+        // on previous thread, let's remove invalid file, and download it again.
+        file.delete()
+      }
 
-      dst.close()
-      fos.close()
-    } else {
-      logger.info(s"DistCache $uri already fetched ")
+      if (!file.exists()) {
+        val fos: FileOutputStream = new FileOutputStream(path)
+        val dst = fos.getChannel
+        val src = gcsUtil.open(GcsPath.fromUri(uri))
+
+        val size = dst.transferFrom(src, 0, src.size())
+        logger.info(s"DistCache $uri fetched to $path, size: $size")
+
+        dst.close()
+        fos.close()
+      } else {
+        logger.info(s"DistCache $uri already fetched ")
+      }
+
+      file
     }
-
-    file
   }
 
   private def temporaryPrefix(uris: Seq[URI]): String = {
@@ -86,7 +103,7 @@ private[scio] abstract class FileDistCache[F](options: GcsOptions) extends DistC
   }
 
   protected def verifyUri(uri: URI): Unit = {
-    if (classOf[DirectPipelineRunner] isAssignableFrom opts.getRunner) {
+    if (ScioUtil.isLocalRunner(opts)) {
       require(ScioUtil.isLocalUri(uri) || ScioUtil.isGcsUri(uri), s"Unsupported path $uri")
     } else {
       require(ScioUtil.isGcsUri(uri), s"Unsupported path $uri")
@@ -102,11 +119,13 @@ private[scio] class MockDistCache[F](val value: F) extends DistCache[F] {
 private[scio] class DistCacheSingle[F](val uri: URI, val initFn: File => F, options: GcsOptions)
   extends FileDistCache[F](options) {
   verifyUri(uri)
-  override protected def init(): F = initFn(prepareFiles(Seq(uri)).head)
+  override protected def init: F = initFn(prepareFiles(Seq(uri)).head)
 }
 
-private[scio] class DistCacheMulti[F](val uris: Seq[URI], val initFn: Seq[File] => F, options: GcsOptions)
+private[scio] class DistCacheMulti[F](val uris: Seq[URI],
+                                      val initFn: Seq[File] => F,
+                                      options: GcsOptions)
   extends FileDistCache[F](options) {
   uris.foreach(verifyUri)
-  override protected def init(): F = initFn(prepareFiles(uris))
+  override protected def init: F = initFn(prepareFiles(uris))
 }

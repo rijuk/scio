@@ -20,15 +20,20 @@ package com.spotify.scio.bigquery.types
 import java.util.{List => JList}
 
 import com.google.api.services.bigquery.model.{TableFieldSchema, TableSchema}
+import com.google.common.base.Charsets
+import com.google.common.hash.{HashCode, Hashing}
+import com.google.common.io.Files
 import com.spotify.scio.bigquery.types.MacroUtil._
 import com.spotify.scio.bigquery.{BigQueryClient, BigQueryUtil}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.macros._
 
+// scalastyle:off line.size.limit
 private[types] object TypeProvider {
-
+  private val logger = LoggerFactory.getLogger(TypeProvider.getClass)
   private lazy val bigquery: BigQueryClient = BigQueryClient.defaultInstance()
 
   // TODO: scala 2.11
@@ -71,17 +76,25 @@ private[types] object TypeProvider {
   // def toTableImpl(c: blackbox.Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
   def toTableImpl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
     import c.universe._
+    checkMacroEnclosed(c)
 
-    val r = annottees.map(_.tree) match {
+    val (r, caseClassTree, name) = annottees.map(_.tree) match {
       case List(q"case class $name(..$fields) { ..$body }") =>
         val defSchema = q"override def schema: ${p(c, GModel)}.TableSchema = ${p(c, SType)}.schemaOf[$name]"
-        q"""${caseClass(c)(name, fields, body)}
-            ${companion(c)(name, Nil, Seq(defSchema), fields.asInstanceOf[Seq[Tree]].size)}
-        """
-      case _ => c.abort(c.enclosingPosition, "Invalid annotation")
+        val defToPrettyString = q"override def toPrettyString(indent: Int = 0): String = ${p(c, s"$SBQ.types.SchemaUtil")}.toPrettyString(this.schema, ${name.toString}, indent)"
+        val fnTrait = tq"${newTypeName(s"Function${fields.size}")}[..${fields.flatMap(_.children)}, $name]"
+        val traits = if (fields.size <= 22) Seq(fnTrait) else Seq()
+        val caseClassTree = q"""${caseClass(c)(name, fields, body)}"""
+        (q"""$caseClassTree
+            ${companion(c)(name, traits, Seq(defSchema, defToPrettyString), fields.asInstanceOf[Seq[Tree]].size)}
+        """, caseClassTree, name.toString())
+      case t => c.abort(c.enclosingPosition, s"Invalid annotation $t")
     }
     debug(s"TypeProvider.toTableImpl:")
     debug(r)
+
+    if (shouldDumpClassesForPlugin) { dumpCodeForScalaPlugin(c)(Seq.empty, caseClassTree, name) }
+
     c.Expr[Any](r)
   }
 
@@ -93,6 +106,7 @@ private[types] object TypeProvider {
                           (schema: TableSchema, annottees: Seq[c.Expr[Any]],
                            traits: Seq[c.Tree], overrides: Seq[c.Tree]): c.Expr[Any] = {
     import c.universe._
+    checkMacroEnclosed(c)
 
     // Returns: (raw type, e.g. Int, String, NestedRecord, nested case class definitions)
     def getRawType(tfs: TableFieldSchema): (Tree, Seq[Tree]) = tfs.getType match {
@@ -135,17 +149,23 @@ private[types] object TypeProvider {
 
     val (fields, records) = toFields(schema.getFields)
 
-    val r = annottees.map(_.tree) match {
+    val (r, caseClassTree, name) = annottees.map(_.tree) match {
       case List(q"class $name") =>
         val defSchema = q"override def schema: ${p(c, GModel)}.TableSchema = ${p(c, SUtil)}.parseSchema(${schema.toString})"
-        q"""${caseClass(c)(name, fields, Nil)}
-            ${companion(c)(name, traits, Seq(defSchema) ++ overrides, fields.size)}
+        val defToPrettyString = q"override def toPrettyString(indent: Int = 0): String = ${p(c, s"$SBQ.types.SchemaUtil")}.toPrettyString(this.schema, ${name.toString}, indent)"
+
+        val caseClassTree = q"""${caseClass(c)(name, fields, Nil)}"""
+        (q"""$caseClassTree
+            ${companion(c)(name, traits, Seq(defSchema, defToPrettyString) ++ overrides, fields.size)}
             ..$records
-        """
-      case _ => c.abort(c.enclosingPosition, "Invalid annotation")
+        """, caseClassTree, name.toString())
+      case t => c.abort(c.enclosingPosition, s"Invalid annotation $t")
     }
     debug(s"TypeProvider.schemaToType[$schema]:")
     debug(r)
+
+    if (shouldDumpClassesForPlugin) { dumpCodeForScalaPlugin(c)(records, caseClassTree, name) }
+
     c.Expr[Any](r)
   }
   // scalastyle:on cyclomatic.complexity
@@ -194,9 +214,12 @@ private[types] object TypeProvider {
   private def companion(c: Context)
                        (name: c.TypeName, traits: Seq[c.Tree], methods: Seq[c.Tree], numFields: Int): c.Tree = {
     import c.universe._
+
+    val overrideFlag = if (traits.exists(_.toString().contains("Function"))) Flag.OVERRIDE else NoFlags
     // TODO: scala 2.11
-    // val tupled = if (numFields > 1 && numFields <= 22) Seq(q"def tupled = (${TermName(name.toString)}.apply _).tupled") else Nil
-    val tupled = if (numFields > 1 && numFields <= 22) Seq(q"def tupled = (${newTermName(name.toString)}.apply _).tupled") else Nil
+    // val tupled = if (numFields > 1 && numFields <= 22) Seq(q"$overrideFlag def tupled = (${TermName(name.toString)}.apply _).tupled") else Nil
+    val tupled = if (numFields > 1 && numFields <= 22) Seq(q"$overrideFlag def tupled = (${newTermName(name.toString)}.apply _).tupled") else Nil
+
     val m = converters(c)(name) ++ tupled ++ methods
     // TODO: scala 2.11
     // val tn = TermName(name.toString)
@@ -216,11 +239,92 @@ private[types] object TypeProvider {
       q"override def toTableRow: ($name => ${p(c, GModel)}.TableRow) = ${p(c, SType)}.toTableRow[$name]")
   }
 
+  /** Enforce that the macro is not enclosed by a package, but a class or object instead. */
+  private def checkMacroEnclosed(c: Context): Unit = {
+    // TODO: scala 2.11
+    //if (!c.internal.enclosingOwner.isClass) {
+    // c.abort(c.enclosingPosition,
+    //  "Invalid macro application - must be applied within class/object.")
+    // }
+    if (c.enclosingClass.isEmpty) {
+      c.abort(c.enclosingPosition, s"@BigQueryType declaration must be inside a class or object.")
+    }
+  }
+
+  /**
+   * Check if compiler should dump generated code for Scio IDEA plugin.
+   *
+   * This is used to mitigate lack of support for Scala macros in IntelliJ.
+   */
+  private def shouldDumpClassesForPlugin = {
+    sys.props("bigquery.plugin.disable.dump") == null ||
+      !sys.props("bigquery.plugin.disable.dump").toBoolean
+  }
+
+  private def getBQClassCacheDir = {
+    // TODO: add this as key/value settings with default etc
+    if (sys.props("bigquery.class.cache.directory") != null) {
+      sys.props("bigquery.class.cache.directory")
+    } else {
+      sys.props("java.io.tmpdir") + "/bigquery-classes"
+    }
+  }
+
+  private def pShowCode(c: Context)(records: Seq[c.Tree], caseClass: c.Tree): Seq[String] = {
+    // print only records and case class and do it nicely so that we can just inject those
+    // in scala plugin.
+    import c.universe._
+    (Seq(caseClass) ++ records).map {
+      case q"case class $name(..$fields) { ..$body }" =>
+        s"case class $name(${fields.map{case ValDef(mods, fname, ftpt, _) => s"$fname : $ftpt"}.mkString(", ")})"
+      case q"case class $name(..$fields) extends $annotation { ..$body }" =>
+        s"case class $name(${fields.map{case ValDef(mods, fname, ftpt, _) => s"$fname : $ftpt"}.mkString(", ")}) extends $annotation"
+      case _ => ""
+    }
+  }
+
+  private def genHashForMacro(owner: String, srcFile: String): String = {
+    Hashing.murmur3_32().newHasher()
+      .putString(owner, Charsets.UTF_8)
+      .putString(srcFile, Charsets.UTF_8)
+      .hash().toString
+  }
+
+  private def dumpCodeForScalaPlugin(c: Context)(records: Seq[c.universe.Tree],
+                                                 caseClassTree: c.universe.Tree,
+                                                 name: String): Unit = {
+    // TODO: scala 2.11
+    // val owner = c.internal.enclosingOwner.fullName
+    import  c.universe._
+    val owner = c.enclosingClass.collect {
+      case m: ModuleDef => m.symbol.fullName
+      case c: ClassDef => c.symbol.fullName
+    }.headOption.getOrElse {
+      c.abort(c.enclosingPosition,
+        "Invalid macro application - must be applied within class/object.")
+    }
+    val srcFile = c.macroApplication.pos.source.path
+    val hash = genHashForMacro(owner, srcFile)
+
+    // TODO scala 2.11
+    // import c.universe._
+    // showCode(r)
+    val prettyCode = pShowCode(c)(records, caseClassTree).mkString("\n")
+    val classCacheDir = getBQClassCacheDir
+    val genSrcFile = new java.io.File(s"$classCacheDir/$name-$hash.scala")
+
+    logger.info(s"Will dump generated $name of $owner from $srcFile to $genSrcFile")
+
+    Files.createParentDirs(genSrcFile)
+    Files.write(prettyCode, genSrcFile, Charsets.UTF_8)
+  }
+
 }
+// scalastyle:on line.size.limit
 
 private[types] object NameProvider {
 
-  private val m = MMap.empty[String, Int]
+  private val m = MMap.empty[String, Int].withDefaultValue(0)
 
   /**
    * Generate a unique name for a nested record.
@@ -228,16 +332,12 @@ private[types] object NameProvider {
    * field names.
    */
   def getUniqueName(name: String): String = m.synchronized {
-    val cName = camelCase(name) + '$'
-    if (m.contains(cName)) {
-      m(cName) += 1
-      cName + m(cName)
-    } else {
-      m.put(cName, 1)
-      cName
-    }
+    val cName = toPascalCase(name) + '$'
+    m(cName) += 1
+    cName + m(cName)
   }
 
-  private def camelCase(s: String): String =
+  private def toPascalCase(s: String): String =
     s.split('_').filter(_.nonEmpty).map(t => t(0).toUpper + t.drop(1).toLowerCase).mkString("")
+
 }

@@ -20,20 +20,25 @@ package com.spotify.scio.coders
 import java.io.{ByteArrayOutputStream, IOException, InputStream, OutputStream}
 
 import com.google.cloud.dataflow.sdk.coders.Coder.Context
-import com.google.cloud.dataflow.sdk.coders.{AtomicCoder, Coder, CoderException}
+import com.google.cloud.dataflow.sdk.coders._
 import com.google.cloud.dataflow.sdk.util.VarInt
 import com.google.common.io.ByteStreams
+import com.google.protobuf.Message
 import com.twitter.chill._
+import com.twitter.chill.protobuf.ProtobufSerializer
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.specific.SpecificRecordBase
 
 import scala.collection.convert.Wrappers.JIterableWrapper
 
-private[scio] class KryoAtomicCoder extends AtomicCoder[Any] {
+private[scio] class KryoAtomicCoder[T] extends AtomicCoder[T] {
 
   @transient
   private lazy val kryo: Kryo = {
     val k = KryoSerializer.registered.newKryo()
+
+    k.forClass(new CoderSerializer(InstantCoder.of()))
+    k.forClass(new CoderSerializer(TableRowJsonCoder.of()))
 
     // java.lang.Iterable.asScala returns JIterableWrapper which causes problem.
     // Treat it as standard Iterable instead.
@@ -41,6 +46,7 @@ private[scio] class KryoAtomicCoder extends AtomicCoder[Any] {
 
     k.forSubclass[SpecificRecordBase](new SpecificAvroSerializer)
     k.forSubclass[GenericRecord](new GenericAvroSerializer)
+    k.forSubclass[Message](new ProtobufSerializer)
 
     k.forClass(new KVSerializer)
     // TODO:
@@ -50,18 +56,22 @@ private[scio] class KryoAtomicCoder extends AtomicCoder[Any] {
     k
   }
 
-  override def encode(value: Any, outStream: OutputStream, context: Context): Unit = {
+  override def encode(value: T, outStream: OutputStream, context: Context): Unit = {
     if (value == null) {
       throw new CoderException("cannot encode a null value")
     }
     if (context.isWholeStream) {
       val output = new Output(outStream)
-      kryo.writeClassAndObject(output, value)
+      kryo.synchronized {
+        kryo.writeClassAndObject(output, value)
+      }
       output.flush()
     } else {
       val s = new ByteArrayOutputStream()
       val output = new Output(s)
-      kryo.writeClassAndObject(output, value)
+      kryo.synchronized {
+        kryo.writeClassAndObject(output, value)
+      }
       output.flush()
       s.close()
 
@@ -70,9 +80,11 @@ private[scio] class KryoAtomicCoder extends AtomicCoder[Any] {
     }
   }
 
-  override def decode(inStream: InputStream, context: Context): Any = {
-    if (context.isWholeStream) {
-      kryo.readClassAndObject(new Input(inStream))
+  override def decode(inStream: InputStream, context: Context): T = {
+    val o = if (context.isWholeStream) {
+      kryo.synchronized {
+        kryo.readClassAndObject(new Input(inStream))
+      }
     } else {
       val length = VarInt.decodeInt(inStream)
       if (length < 0) {
@@ -81,12 +93,15 @@ private[scio] class KryoAtomicCoder extends AtomicCoder[Any] {
 
       val value = Array.ofDim[Byte](length)
       ByteStreams.readFully(inStream, value)
-      kryo.readClassAndObject(new Input(value))
+      kryo.synchronized {
+        kryo.readClassAndObject(new Input(value))
+      }
     }
+    o.asInstanceOf[T]
   }
 
 }
 
 private[scio] object KryoAtomicCoder {
-  def apply[T]: Coder[T] = (new KryoAtomicCoder).asInstanceOf[Coder[T]]
+  def apply[T]: Coder[T] = new KryoAtomicCoder[T]
 }

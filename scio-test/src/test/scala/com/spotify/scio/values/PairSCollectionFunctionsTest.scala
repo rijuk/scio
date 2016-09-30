@@ -18,17 +18,18 @@
 package com.spotify.scio.values
 
 import com.spotify.scio.testing.PipelineSpec
+import com.spotify.scio.util.random.RandomSamplerUtils
 import com.twitter.algebird.Aggregator
 
 class PairSCollectionFunctionsTest extends PipelineSpec {
 
   import com.spotify.scio.testing.TestingUtils._
 
-  "PairSCollection" should "support coGroup()" in {
+  "PairSCollection" should "support cogroup()" in {
     runWithContext { sc =>
       val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
       val p2 = sc.parallelize(Seq(("a", 11L), ("b", 12L), ("d", 14L)))
-      val r1 = p1.coGroup(p2)
+      val r1 = p1.cogroup(p2)
       val r2 = p1.groupWith(p2)
       val expected = Seq(
         ("a", (iterable(1), iterable(11L))),
@@ -40,12 +41,13 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
     }
   }
 
-  it should "support coGroup() with duplicate keys" in {
+  it should "support cogroup() with duplicate keys" in {
     runWithContext { sc =>
       val p1 = sc.parallelize(Seq(("a", 1), ("a", 2), ("b", 2), ("c", 3)))
       val p2 = sc.parallelize(Seq(("a", 11L), ("b", 12L), ("b", 13L), ("d", 14L)))
-      def fn = (t: (String, (Iterable[Int], Iterable[Long]))) => (t._1, (t._2._1.toSet, t._2._2.toSet))
-      val r1 = p1.coGroup(p2).map(fn)
+      val fn = (t: (String, (Iterable[Int], Iterable[Long]))) =>
+        (t._1, (t._2._1.toSet, t._2._2.toSet))
+      val r1 = p1.cogroup(p2).map(fn)
       val r2 = p1.groupWith(p2).map(fn)
       val expected = Seq[(String, (Set[Int], Set[Long]))](
         ("a", (Set(1, 2), Set(11L))),
@@ -57,12 +59,12 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
     }
   }
 
-  it should "support 3-way coGroup()" in {
+  it should "support 3-way cogroup()" in {
     runWithContext { sc =>
       val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
       val p2 = sc.parallelize(Seq(("a", 11L), ("b", 12L), ("d", 14L)))
       val p3 = sc.parallelize(Seq(("a", 21F), ("b", 22F), ("e", 25F)))
-      val r1 = p1.coGroup(p2, p3)
+      val r1 = p1.cogroup(p2, p3)
       val r2 = p1.groupWith(p2, p3)
       val expected = Seq(
         ("a", (iterable(1), iterable(11L), iterable(21F))),
@@ -75,13 +77,13 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
     }
   }
 
-  it should "support 4-way coGroup()" in {
+  it should "support 4-way cogroup()" in {
     runWithContext { sc =>
       val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
       val p2 = sc.parallelize(Seq(("a", 11L), ("b", 12L), ("d", 14L)))
       val p3 = sc.parallelize(Seq(("a", 21F), ("b", 22F), ("e", 25F)))
       val p4 = sc.parallelize(Seq(("a", 31.0), ("b", 32.0), ("f", 36.0)))
-      val r1 = p1.coGroup(p2, p3, p4)
+      val r1 = p1.cogroup(p2, p3, p4)
       val r2 = p1.groupWith(p2, p3, p4)
       val expected = Seq(
         ("a", (iterable(1), iterable(11L), iterable(21F), iterable(31.0))),
@@ -160,7 +162,8 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
       val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
       val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("d", 14)))
       val p = p1.rightOuterJoin(p2)
-      p should containInAnyOrder (Seq(("a", (Some(1), 11)), ("b", (Some(2), 12)), ("d", (None, 14))))
+      p should
+        containInAnyOrder (Seq(("a", (Some(1), 11)), ("b", (Some(2), 12)), ("d", (None, 14))))
     }
   }
 
@@ -221,7 +224,7 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
 
   it should "support countByKey()" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq(("a", 11), ("a", 12), ("b", 21), ("b", 22), ("b", 23))).countByKey()
+      val p = sc.parallelize(Seq(("a", 11), ("a", 12), ("b", 21), ("b", 22), ("b", 23))).countByKey
       p should containInAnyOrder (Seq(("a", 2L), ("b", 3L)))
     }
   }
@@ -244,10 +247,49 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
     }
   }
 
-  it should "support groupByKey()" in {
+  it should "support groupByKey" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq(("a", 1), ("a", 10), ("b", 2), ("b", 20))).groupByKey().mapValues(_.toSet)
+      val p = sc
+        .parallelize(Seq(("a", 1), ("a", 10), ("b", 2), ("b", 20)))
+        .groupByKey
+        .mapValues(_.toSet)
       p should containInAnyOrder (Seq(("a", Set(1, 10)), ("b", Set(2, 20))))
+    }
+  }
+
+  it should "support intersectByKey()" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
+      val p2 = sc.parallelize(Seq("a", "b", "d"))
+      val p = p1.intersectByKey(p2)
+      p should containInAnyOrder (Seq(("a", 1), ("b", 2)))
+    }
+  }
+
+  it should "support intersectByKey() with duplicate keys" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3), ("b", 4)))
+      val p2 = sc.parallelize(Seq("a", "b", "b", "d"))
+      val p = p1.intersectByKey(p2)
+      p should containInAnyOrder (Seq(("a", 1), ("b", 2), ("b", 4)))
+    }
+  }
+
+  it should "support intersectByKey() with empty LHS" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq[(String, Any)]())
+      val p2 = sc.parallelize(Seq("a", "b", "d"))
+      val p = p1.intersectByKey(p2)
+      p should beEmpty
+    }
+  }
+
+  it should "support intersectByKey() with empty RHS" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3), ("b", 4)))
+      val p2 = sc.parallelize(Seq[String]())
+      val p = p1.intersectByKey(p2)
+      p should beEmpty
     }
   }
 
@@ -281,14 +323,18 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
 
   it should "support reduceByKey()" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq(("a", 1), ("b", 1), ("b", 2), ("c", 1), ("c", 2), ("c", 3))).reduceByKey(_ + _)
+      val p = sc
+        .parallelize(Seq(("a", 1), ("b", 1), ("b", 2), ("c", 1), ("c", 2), ("c", 3)))
+        .reduceByKey(_ + _)
       p should containInAnyOrder (Seq(("a", 1), ("b", 3), ("c", 6)))
     }
   }
 
   it should "support sampleByKey()" in {
     runWithContext { sc =>
-      val p = sc.parallelize(Seq(("a", 1), ("b", 2), ("b", 2), ("c", 3), ("c", 3), ("c", 3))).sampleByKey(1)
+      val p = sc
+        .parallelize(Seq(("a", 1), ("b", 2), ("b", 2), ("c", 3), ("c", 3), ("c", 3)))
+        .sampleByKey(1)
       p should containInAnyOrder (Seq(("a", iterable(1)), ("b", iterable(2)), ("c", iterable(3))))
     }
   }
@@ -296,7 +342,9 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
   it should "support sampleByKey() with replacement" in {
     import RandomSamplerUtils._
     for (fraction <- List(0.05, 0.2, 1.0)) {
-      val sample = runWithData(keyedPopulation)(_.sampleByKey(true, Map("a" -> fraction, "b" -> fraction)))
+      val sample = runWithData(keyedPopulation) {
+        _.sampleByKey(true, Map("a" -> fraction, "b" -> fraction))
+      }
       sample.groupBy(_._1).values.foreach { s =>
         (s.size.toDouble / populationSize) should be (fraction +- 0.05)
         s.toSet.size should be < sample.size
@@ -307,7 +355,9 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
   it should "support sampleByKey() without replacement" in {
     import RandomSamplerUtils._
     for (fraction <- List(0.05, 0.2, 1.0)) {
-      val sample = runWithData(keyedPopulation)(_.sampleByKey(false, Map("a" -> fraction, "b" -> fraction)))
+      val sample = runWithData(keyedPopulation) {
+        _.sampleByKey(false, Map("a" -> fraction, "b" -> fraction))
+      }
       sample.groupBy(_._1).values.foreach { s =>
         (s.size.toDouble / populationSize) should be (fraction +- 0.05)
         s.toSet.size should be < sample.size
@@ -318,15 +368,44 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
   it should "support subtractByKey()" in {
     runWithContext { sc =>
       val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("b", 3), ("c", 4), ("c", 5), ("c", 6)))
-      val p2 = sc.parallelize(Seq(("a", 10L), ("b", 20L)))
+      val p2 = sc.parallelize(Seq("a", "b", "d"))
       val p = p1.subtractByKey(p2)
       p should containInAnyOrder (Seq(("c", 4), ("c", 5), ("c", 6)))
     }
   }
 
+  it should "support subtractByKey() with duplicate keys" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("b", 3), ("c", 4), ("c", 5), ("c", 6)))
+      val p2 = sc.parallelize(Seq("a", "b", "b", "d"))
+      val p = p1.subtractByKey(p2)
+      p should containInAnyOrder (Seq(("c", 4), ("c", 5), ("c", 6)))
+    }
+  }
+
+  it should "support subtrackByKey() with empty LHS" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq[(String, Any)]())
+      val p2 = sc.parallelize(Seq("a", "b", "d"))
+      val p = p1.subtractByKey(p2)
+      p should beEmpty
+    }
+  }
+
+  it should "support subtrackByKey() with empty RHS" in {
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3), ("b", 4)))
+      val p2 = sc.parallelize(Seq[String]())
+      val p = p1.subtractByKey(p2)
+      p should containInAnyOrder (Seq(("a", 1), ("b", 2), ("c", 3), ("b", 4)))
+    }
+  }
+
   it should "support sumByKey()" in {
     runWithContext { sc =>
-      val p = sc.parallelize(List(("a", 1), ("b", 2), ("b", 2)) ++ (1 to 100).map(("c", _))).sumByKey
+      val p = sc
+        .parallelize(List(("a", 1), ("b", 2), ("b", 2)) ++ (1 to 100).map(("c", _)))
+        .sumByKey
       p should containInAnyOrder (Seq(("a", 1), ("b", 4), ("c", 5050)))
     }
   }
@@ -343,8 +422,10 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
       val p = sc.parallelize(Seq(("a", 1), ("b", 11), ("b", 12), ("c", 21), ("c", 22), ("c", 23)))
       val r1 = p.topByKey(1)
       val r2 = p.topByKey(1)(Ordering.by(-_))
-      r1 should containInAnyOrder (Seq(("a", iterable(1)), ("b", iterable(12)), ("c", iterable(23))))
-      r2 should containInAnyOrder (Seq(("a", iterable(1)), ("b", iterable(11)), ("c", iterable(21))))
+      r1 should
+        containInAnyOrder (Seq(("a", iterable(1)), ("b", iterable(12)), ("c", iterable(23))))
+      r2 should
+        containInAnyOrder (Seq(("a", iterable(1)), ("b", iterable(11)), ("c", iterable(21))))
     }
   }
 
@@ -369,7 +450,8 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
       val p1 = sc.parallelize(Seq(("a", 1), ("a", 2), ("b", 3)))
       val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("b", 13)))
       val p = p1.hashJoin(p2)
-      p should containInAnyOrder (Seq(("a", (1, 11)), ("a", (2, 11)), ("b", (3, 12)), ("b", (3, 13))))
+      p should
+        containInAnyOrder (Seq(("a", (1, 11)), ("a", (2, 11)), ("b", (3, 12)), ("b", (3, 13))))
     }
   }
 
@@ -393,6 +475,88 @@ class PairSCollectionFunctionsTest extends PipelineSpec {
         ("b", (3, Some(12))),
         ("b", (3, Some(13))),
         ("c", (4, None))))
+    }
+  }
+
+  val (skewSeed, skewEps) = (42, 0.001D)
+
+  it should "support skewedJoin() without hotkeys and no duplicate keys" in {
+    import com.twitter.algebird.CMSHasherImplicits._
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("b", 2), ("c", 3)))
+      val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("b", 13)))
+      val p = p1.skewedJoin(p2, Long.MaxValue, skewEps, skewSeed)
+      p should
+        containInAnyOrder (Seq(("a", (1, 11)), ("b", (2, 12)), ("b", (2, 13))))
+    }
+  }
+
+  it should "support skewedJoin() without hotkeys" in {
+    import com.twitter.algebird.CMSHasherImplicits._
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("a", 2), ("b", 3)))
+      val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("b", 13)))
+      val p = p1.skewedJoin(p2, Long.MaxValue, skewEps, skewSeed)
+      p should
+        containInAnyOrder (Seq( ("a", (1, 11)),
+                                ("a", (2, 11)),
+                                ("b", (3, 12)),
+                                ("b", (3, 13))))
+    }
+  }
+
+  it should "support skewedJoin() with hotkey" in {
+    import com.twitter.algebird.CMSHasherImplicits._
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("a", 2), ("b", 3)))
+      val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("b", 13)))
+      // set threshold to 2, to hash join on "a"
+      val p = p1.skewedJoin(p2, 2, skewEps, skewSeed)
+      p should
+        containInAnyOrder (Seq( ("a", (1, 11)),
+                                ("a", (2, 11)),
+                                ("b", (3, 12)),
+                                ("b", (3, 13))))
+    }
+  }
+
+  it should "support skewedJoin() with 0.5 sample" in {
+    import com.twitter.algebird.CMSHasherImplicits._
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("a", 2), ("a", 3), ("b", 3)))
+      val p2 = sc.parallelize(Seq(("a", 11), ("b", 12), ("b", 13)))
+
+      // set threshold to 3, given 0.5 fraction for sample - "a" should not be hash joined
+      val p = p1.skewedJoin(p2, 3, skewEps, skewSeed, sampleFraction = 0.5)
+      p should
+        containInAnyOrder (Seq( ("a", (1, 11)),
+                                ("a", (2, 11)),
+                                ("a", (3, 11)),
+                                ("b", (3, 12)),
+                                ("b", (3, 13))))
+    }
+  }
+
+  it should "support skewedJoin() with empty key count (no hash join)" in {
+    import com.twitter.algebird.CMSHasherImplicits._
+    runWithContext { sc =>
+      val p1 = sc.parallelize(Seq(("a", 1), ("a", 2)))
+      val p2 = sc.parallelize(Seq(("a", 11)))
+
+      // set threshold to 3, given 0.5 fraction for sample - "a" should not be hash joined
+      val p = p1.skewedJoin(p2, 3, skewEps, skewSeed, sampleFraction = 0.01)
+      p should
+        containInAnyOrder (Seq(("a", (2, 11)),
+                               ("a", (1, 11))))
+    }
+  }
+
+  it should "support join() of empty SCollections" in {
+    runWithContext { sc =>
+      val lhs = sc.parallelize(Seq[(String, Unit)]())
+      val rhs = sc.parallelize(Seq[(String, Unit)]())
+      val result = lhs.join(rhs)
+      result should beEmpty
     }
   }
 

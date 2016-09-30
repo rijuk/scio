@@ -17,16 +17,17 @@
 
 package com.spotify.scio.examples.complete
 
+import com.google.datastore.v1.client.DatastoreHelper.{makeKey, makeValue}
 import com.google.api.services.bigquery.model.{TableFieldSchema, TableSchema}
-import com.google.api.services.datastore.DatastoreV1.Entity
-import com.google.api.services.datastore.client.DatastoreHelper
 import com.google.cloud.dataflow.examples.common.DataflowExampleUtils
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner
+import com.google.datastore.v1.Entity
 import com.spotify.scio._
 import com.spotify.scio.bigquery._
 import com.spotify.scio.examples.common.{ExampleData, ExampleOptions}
 import com.spotify.scio.values.SCollection
 import org.joda.time.Duration
+import com.google.common.collect.ImmutableMap
 
 import scala.collection.JavaConverters._
 
@@ -53,7 +54,8 @@ object AutoComplete {
       new TableFieldSchema().setName("tag").setType("STRING"))
     val fields = List(
       new TableFieldSchema().setName("pre").setType("STRING"),
-      new TableFieldSchema().setName("tags").setType("RECORD").setMode("REPEATED").setFields(tagFields.asJava))
+      new TableFieldSchema().setName("tags").setType("RECORD").setMode("REPEATED")
+        .setFields(tagFields.asJava))
     new TableSchema().setFields(fields.asJava)
   }
 
@@ -61,7 +63,8 @@ object AutoComplete {
   : SCollection[(String, Iterable[(String, Long)])] =
     input.flatMap { kv =>
       val (word, count) = kv
-      (minPrefix to Math.min(word.length, maxPrefix)).map(i => (word.substring(0, i), (word, count)))
+      (minPrefix to Math.min(word.length, maxPrefix))
+        .map(i => (word.substring(0, i), (word, count)))
     }.topByKey(10)(Ordering.by(_._2))
 
   def computeTopRecursive(input: SCollection[(String, Long)], minPrefix: Int)
@@ -70,21 +73,23 @@ object AutoComplete {
       computeTop(input, minPrefix).partition(2, t => if (t._1.length > minPrefix) 0 else 1)
     } else {
       val larger = computeTopRecursive(input, minPrefix + 1)
-      val small = computeTop(larger(1).flatMap(_._2) ++ input.filter(_._1.length == minPrefix), minPrefix, minPrefix)
+      val small = computeTop(
+        larger(1).flatMap(_._2) ++ input.filter(_._1.length == minPrefix), minPrefix, minPrefix)
       Seq(larger.head ++ larger(1), small)
     }
 
   def makeEntity(kind: String, kv: (String, Iterable[(String, Long)])): Entity = {
-    val key = DatastoreHelper.makeKey(kind, kv._1).build();
+    val key = makeKey(kind, kv._1).build()
     val candidates = kv._2.map { p =>
-      DatastoreHelper.makeValue(Entity.newBuilder()
-        .addProperty(DatastoreHelper.makeProperty("tag", DatastoreHelper.makeValue(p._1)))
-        .addProperty(DatastoreHelper.makeProperty("count", DatastoreHelper.makeValue(p._2)))
-      ).setIndexed(false).build()
+      makeValue(Entity.newBuilder()
+        .putAllProperties(ImmutableMap.of(
+          "tag", makeValue(p._1).build(),
+          "count", makeValue(p._2).build()))
+      ).build()
     }
     Entity.newBuilder()
       .setKey(key)
-      .addProperty(DatastoreHelper.makeProperty("candidates", DatastoreHelper.makeValue(candidates.asJava)))
+      .putAllProperties(ImmutableMap.of("candidates", makeValue(candidates.asJava).build()))
       .build()
   }
 
@@ -116,7 +121,9 @@ object AutoComplete {
     }
 
     // compute candidates
-    val candidates = input.flatMap(_.split("[^a-zA-Z']+").filter(_.nonEmpty).map(_.toLowerCase)).countByValue()
+    val candidates = input
+      .flatMap(_.split("[^a-zA-Z']+").filter(_.nonEmpty).map(_.toLowerCase))
+      .countByValue
     val tags = if (args.boolean("recursive", true)) {
       SCollection.unionAll(computeTopRecursive(candidates, 1))
     } else {
